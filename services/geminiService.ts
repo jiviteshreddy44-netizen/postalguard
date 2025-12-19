@@ -1,35 +1,36 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
-import { ComplaintAnalysis } from "../types";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { ComplaintAnalysis, GroundingLink } from "../types";
+
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeComplaint = async (description: string, imageUrl?: string, context?: string, trackingNumber?: string): Promise<ComplaintAnalysis> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const model = "gemini-3-flash-preview";
+  const ai = getAI();
+  const model = "gemini-3-pro-preview";
   
   const systemInstruction = `
-    You are an official digital assistant for Posty (a smart redressal system). 
-    Your role is to help summarize incoming complaints for staff to review quickly.
+    You are the Principal Intelligence Architect for India Post (Posty).
+    Your task is to generate a HIGH-DENSITY data briefing for postal staff.
     
-    GUIDELINES:
-    - Avoid using technical jargon like "AI", "algorithm", "triage", or "machine learning".
-    - Use simple, professional language that citizens and staff can easily understand.
-    - URGENCY LEVEL (1-100):
-       - 90-100: Critical / Essential (Medicines, Passport, Legal documents, Pension, Exam results).
-       - 70-89: Time-sensitive (Business items, Delivery delays over 5 days).
-       - 40-69: Standard issues.
-       - 1-39: General queries.
-    - DEADLINE: Calculate a reasonable response time based on urgency.
-    - DUPLICATE CHECK: Check if this looks like a repeat of previous complaints in the context provided.
-    - TRANSLATION: If the user writes in Hindi or Telugu, provide a professional English version in 'translatedText'.
-    - CATEGORY: Pick one: Delivery Delay, Lost Parcel, Damaged Item, Wrong Delivery, Staff Misconduct, Refund/Payment Issue, or Other.
+    PRIORITY ENGINE (1-100):
+    - keywordSeverity: Detect words like 'medicine', 'court', 'bank', 'passport', 'delay', 'urgent', 'loss', 'theft'.
+    - sentimentImpact: Quantify anger, desperation, or frustration.
+    - categoryWeight: 'Lost Parcel' (90), 'Staff Misconduct' (85), 'Delivery Delay' (60), 'General Enquiry' (30).
+    
+    CITIZEN INSIGHT:
+    - Synthesize a 'Citizen DNA' profile based on their grievance history and tone.
+    
+    LOGISTICS AUDIT:
+    - If tracking number exists (e.g., EB12345IN), provide a technical hypothesis of where the failure occurred (Sortation Hub, Postman Delivery, or NSH Transit).
+    
+    INVESTIGATION STRATEGY:
+    - Provide 3-4 actionable technical steps for an officer to take.
   `;
 
-  const now = new Date().toISOString();
   const parts: any[] = [
-    { text: `Today's Date: ${now}` },
-    { text: `Provided Tracking Number: ${trackingNumber || "Not provided"}` },
-    { text: `Previous records for reference: ${context || "None"}` },
-    { text: `User's complaint: ${description}` }
+    { text: `Staff Context (Previous Interaction History): ${context || "None"}` },
+    { text: `Current Grievance Text: ${description}` },
+    { text: `Tracking ID: ${trackingNumber || "N/A"}` }
   ];
   
   if (imageUrl) {
@@ -50,62 +51,223 @@ export const analyzeComplaint = async (description: string, imageUrl?: string, c
           properties: {
             category: { type: Type.STRING },
             sentiment: { type: Type.STRING },
-            priority: { type: Type.STRING },
+            emotionalToneScore: { type: Type.INTEGER },
+            urgencyScore: { type: Type.INTEGER },
             priorityScore: { type: Type.INTEGER },
-            tags: { type: Type.ARRAY, items: { type: Type.STRING } },
-            suggestedResponse: { type: Type.STRING },
+            priorityLabel: { type: Type.STRING },
             summary: { type: Type.STRING },
+            suggestedResponse: { type: Type.STRING },
+            tags: { type: Type.ARRAY, items: { type: Type.STRING } },
             translatedText: { type: Type.STRING },
-            routingOffice: { type: Type.STRING },
             slaDeadline: { type: Type.STRING },
-            isPotentialDuplicate: { type: Type.BOOLEAN },
-            duplicateConfidence: { type: Type.NUMBER },
-            duplicateOfId: { type: Type.STRING },
-            entities: {
+            predictedResolutionHours: { type: Type.INTEGER },
+            intelligenceBriefing: {
               type: Type.OBJECT,
               properties: {
-                location: { type: Type.STRING },
-                post_office: { type: Type.STRING },
-                tracking_number: { type: Type.STRING },
-                pin_code: { type: Type.STRING }
+                suggestedRegulations: { type: Type.ARRAY, items: { type: Type.STRING } },
+                riskAssessment: { type: Type.STRING },
+                investigationStrategy: { type: Type.ARRAY, items: { type: Type.STRING } },
+                logisticsAudit: { type: Type.STRING },
+                escalationProbability: { type: Type.INTEGER },
+                recommendedTone: { type: Type.STRING },
+                priorityBreakdown: {
+                  type: Type.OBJECT,
+                  properties: {
+                    keywordSeverity: { type: Type.INTEGER },
+                    sentimentImpact: { type: Type.INTEGER },
+                    categoryWeight: { type: Type.INTEGER },
+                    explanation: { type: Type.STRING }
+                  }
+                },
+                citizenProfile: {
+                  type: Type.OBJECT,
+                  properties: {
+                    loyaltyLevel: { type: Type.STRING },
+                    previousResolutionSatisfaction: { type: Type.STRING },
+                    historicalSentimentTrend: { type: Type.STRING }
+                  }
+                }
               }
             }
-          },
-          required: ["category", "sentiment", "priority", "priorityScore", "tags", "suggestedResponse", "summary", "translatedText", "entities", "routingOffice", "slaDeadline", "isPotentialDuplicate"]
+          }
         }
       }
     });
 
-    return JSON.parse(response.text || "{}");
+    return JSON.parse(response.text?.trim() || "{}");
   } catch (error) {
-    console.error("Analysis failed:", error);
-    const fallbackDate = new Date();
-    fallbackDate.setHours(fallbackDate.getHours() + 72);
+    console.error("AI Strategic Analysis Failed:", error);
     return {
       category: "Other",
       sentiment: "Neutral",
-      priority: "Medium",
+      emotionalToneScore: 50,
+      urgencyScore: 50,
       priorityScore: 50,
-      tags: ["review-needed"],
-      suggestedResponse: "We have received your complaint and an officer will review it shortly.",
-      summary: "Automatic summary unavailable. Please read description.",
+      priorityLabel: "Routine",
+      summary: "Manual classification required.",
+      suggestedResponse: "Namaste. Your grievance is being reviewed by our specialists.",
+      tags: ["manual-review"],
       translatedText: description,
-      entities: { tracking_number: trackingNumber },
-      routingOffice: "General",
-      slaDeadline: fallbackDate.toISOString(),
-      isPotentialDuplicate: false
+      slaDeadline: new Date(Date.now() + 86400000 * 3).toISOString(),
+      predictedResolutionHours: 72,
+      intelligenceBriefing: {
+        suggestedRegulations: ["SOP Grievance v4"],
+        riskAssessment: "Medium",
+        investigationStrategy: ["Contact local postmaster", "Verify tracking logs"],
+        escalationProbability: 10,
+        recommendedTone: "Formal",
+        priorityBreakdown: {
+          keywordSeverity: 50,
+          sentimentImpact: 50,
+          categoryWeight: 50,
+          explanation: "Fallback priority assigned."
+        },
+        citizenProfile: {
+          // Fix: Type '"Standard"' is not assignable to type '"New" | "Regular" | "Frequent"'.
+          loyaltyLevel: "New",
+          previousResolutionSatisfaction: "N/A",
+          historicalSentimentTrend: "Stable"
+        }
+      }
     };
   }
 };
 
-export const getQuickSupport = async (query: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const polishDraft = async (draft: string) => {
+  const ai = getAI();
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Polish this draft for an India Post official: "${draft}"`,
+      config: { systemInstruction: "Formal, authoritative, and empathetic India Post tone." }
+    });
+    return response.text;
+  } catch (e) {
+    return draft;
+  }
+};
+
+export interface QuickSupportResult {
+  text: string;
+  links?: GroundingLink[];
+}
+
+export const getQuickSupport = async (query: string, userHistory?: string): Promise<QuickSupportResult> => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: query,
+    model: "gemini-3-pro-preview",
+    contents: `User Query: ${query}\nUser Context: ${userHistory || "None"}`,
     config: {
-      systemInstruction: "You are Dak-Mitra, an official digital friend from Posty. Help citizens with tracking, finding pin codes, and filing complaints. Use very simple and polite language. Avoid technical words.",
+      tools: [{ googleSearch: {} }],
+      systemInstruction: "You are Dak-Mitra from Posty. Use official India Post information. If the user asks about their complaints, refer to their history context provided.",
     },
   });
-  return response.text || "Maaf kijiye, main abhi madad nahi kar sakta. (Sorry, I cannot help right now.)";
+
+  const links: GroundingLink[] = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+    ?.map((chunk: any) => chunk.web ? { title: chunk.web.title, uri: chunk.web.uri } : null)
+    .filter(Boolean) || [];
+
+  return {
+    text: response.text || "Connection issue.",
+    links: links.length > 0 ? links : undefined
+  };
 };
+
+export const findNearbyBranches = async (lat: number, lng: number) => {
+  const ai = getAI();
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: "Find 3 nearest India Post offices.",
+      config: {
+        tools: [{ googleMaps: {} }],
+        toolConfig: { retrievalConfig: { latLng: { latitude: lat, longitude: lng } } }
+      }
+    });
+    return {
+      text: response.text,
+      links: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((c: any) => c.maps?.uri).filter(Boolean) || []
+    };
+  } catch (e) {
+    return { text: "Location services unavailable.", links: [] };
+  }
+};
+
+export const extractDetailsFromImage = async (base64Image: string) => {
+  const ai = getAI();
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: [{
+        parts: [
+          { inlineData: { mimeType: 'image/jpeg', data: base64Image.split(',')[1] } },
+          { text: "Extract Tracking Number and Post Office Name. Return JSON." }
+        ]
+      }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            trackingNumber: { type: Type.STRING },
+            postOffice: { type: Type.STRING }
+          }
+        }
+      }
+    });
+    return JSON.parse(response.text?.trim() || "{}");
+  } catch (e) {
+    return null;
+  }
+};
+
+export const generateSpeech = async (text: string): Promise<string | undefined> => {
+  const ai = getAI();
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Kore' },
+          },
+        },
+      },
+    });
+    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  } catch (e) {
+    console.error("TTS Failed:", e);
+    return undefined;
+  }
+};
+
+export const decodeAudio = (base64: string): Uint8Array => {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+};
+
+export async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}

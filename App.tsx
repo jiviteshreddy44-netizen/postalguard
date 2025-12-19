@@ -2,20 +2,10 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { 
-  LogOut,
-  Sun,
-  Moon,
-  Accessibility,
-  Search,
-  UserCircle,
-  Phone,
-  Mail as MailIcon,
-  CreditCard,
-  Type,
-  Menu
+  LogOut, Sun, Moon, Search, UserCircle, Bell, Mic, Mail
 } from 'lucide-react';
 
-import { User, Complaint } from './types';
+import { User, Complaint, Notification, ComplaintStatus } from './types';
 import Login from './views/Login';
 import Dashboard from './views/Dashboard';
 import SubmitComplaint from './views/SubmitComplaint';
@@ -23,6 +13,28 @@ import TrackStatus from './views/TrackStatus';
 import ComplaintMenu from './views/ComplaintMenu';
 import AdminTickets from './views/AdminTickets';
 import ChatAssistant from './views/ChatAssistant';
+import LiveVoiceAssistant from './views/LiveVoiceAssistant';
+
+// --- ROBUST BRAND ASSETS (SVG) ---
+
+export const IndiaPostLogo = ({ className = "h-12" }: { className?: string }) => (
+  <svg viewBox="0 0 300 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 20L80 50L20 80V20Z" fill="#d12128" />
+    <path d="M40 20L100 50L40 80V20Z" fill="#d12128" opacity="0.6" />
+    <text x="115" y="65" fill="currentColor" className="font-serif italic font-black text-4xl">India Post</text>
+  </svg>
+);
+
+export const StateEmblem = ({ className = "h-16" }: { className?: string }) => (
+  <svg viewBox="0 0 100 120" className={className} fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M50 10C55 10 60 15 60 25C60 35 55 40 50 40C45 40 40 35 40 25C40 15 45 10 50 10Z" />
+    <path d="M30 45H70L65 75C65 85 55 90 50 90C45 90 35 85 35 75L30 45Z" />
+    <rect x="20" y="95" width="60" height="5" rx="2" />
+    <text x="50" y="115" textAnchor="middle" fontSize="10" fontWeight="900">सत्यमेव जयते</text>
+  </svg>
+);
+
+// --- TRANSLATIONS ---
 
 const translations = {
   en: {
@@ -182,45 +194,70 @@ const OfficialHeader = ({
   user, 
   onLogout, 
   isDark, 
-  toggleTheme 
+  toggleTheme,
+  notifications,
+  markAllRead,
+  onOpenLive
 }: { 
   user: User | null, 
   onLogout: () => void, 
   isDark: boolean, 
-  toggleTheme: () => void 
+  toggleTheme: () => void,
+  notifications: Notification[],
+  markAllRead: () => void,
+  onOpenLive: () => void
 }) => {
   const { lang, setLang, t } = useContext(LangContext);
-  
-  // Official Asset URLs
-  const emblemUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/200px-Emblem_of_India.svg.png";
-  const swachhBharatLogo = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Swachh_Bharat_Abhiyan_logo.svg/1024px-Swachh_Bharat_Abhiyan_logo.svg.png";
-  const digitalIndiaLogo = "https://upload.wikimedia.org/wikipedia/en/thumb/9/95/Digital_India_logo.svg/1024px-Digital_India_logo.svg.png";
-  const indianFlag = "https://upload.wikimedia.org/wikipedia/en/thumb/4/41/Flag_of_India.svg/1200px-Flag_of_India.svg.png";
+  const [showNotifications, setShowNotifications] = useState(false);
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <header className="w-full flex flex-col bg-indiapost-beige dark:bg-stone-950 transition-colors shadow-sm">
-      {/* 1. Government Top Bar */}
-      <div className="bg-indiapost-cream/50 dark:bg-stone-900 py-1.5 px-4 md:px-12 border-b border-indiapost-sand/50 dark:border-stone-800">
+    <header className="w-full flex flex-col bg-white dark:bg-black transition-colors border-b border-slate-200 dark:border-slate-800 relative z-[100]">
+      <div className="bg-slate-50 dark:bg-slate-900 py-1.5 px-4 md:px-12 border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto flex justify-between items-center text-[10px] md:text-xs">
-          <div className="flex items-center gap-3">
-            <img src={indianFlag} alt="Flag" className="h-3.5 w-auto shadow-sm" />
-            <div className="flex gap-2 font-bold text-stone-700 dark:text-stone-300">
-               <span>भारत सरकार</span>
-               <span className="text-indiapost-sand">|</span>
-               <span>GOVERNMENT OF INDIA</span>
-            </div>
+          <div className="flex items-center gap-3 font-bold text-slate-700 dark:text-slate-300">
+             <span>भारत सरकार</span>
+             <span className="text-slate-300">|</span>
+             <span>GOVERNMENT OF INDIA</span>
           </div>
-          <div className="flex items-center gap-4 text-stone-600 dark:text-stone-400">
-            <button className="hover:text-indiapost-red font-bold transition-colors"><Accessibility size={14} /></button>
-            <div className="h-3 w-px bg-indiapost-sand"></div>
+          <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400">
+            <button onClick={onOpenLive} className="flex items-center gap-1.5 hover:text-indiapost-red font-black uppercase tracking-tighter">
+              <Mic size={12} /> Live Voice
+            </button>
+            <div className="h-3 w-px bg-slate-200 dark:bg-slate-800"></div>
             <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="hover:text-indiapost-red font-bold transition-colors">
                {lang === 'en' ? 'हिन्दी' : 'English'}
             </button>
-            <div className="h-3 w-px bg-indiapost-sand"></div>
+            <div className="h-3 w-px bg-slate-200 dark:bg-slate-800"></div>
             <button onClick={toggleTheme} className="hover:text-indiapost-red transition-colors">
                {isDark ? <Sun size={14} /> : <Moon size={14} />}
             </button>
-            <div className="h-3 w-px bg-indiapost-sand"></div>
+            <div className="h-3 w-px bg-slate-200 dark:bg-slate-800"></div>
+            <div className="relative">
+               <button onClick={() => setShowNotifications(!showNotifications)} className="hover:text-indiapost-red transition-colors relative">
+                 <Bell size={14} />
+                 {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-indiapost-red text-white text-[7px] w-3 h-3 rounded-full flex items-center justify-center font-bold animate-pulse">{unreadCount}</span>}
+               </button>
+               {showNotifications && (
+                 <div className="absolute right-0 mt-4 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2">
+                   <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+                     <p className="text-[10px] font-black uppercase tracking-widest text-indiapost-red">Notifications</p>
+                     <button onClick={markAllRead} className="text-[8px] font-bold text-slate-400 uppercase hover:text-indiapost-red">Clear All</button>
+                   </div>
+                   <div className="max-h-64 overflow-y-auto space-y-3 custom-scrollbar">
+                     {notifications.length === 0 ? (
+                       <p className="text-center py-6 text-[10px] text-slate-400 font-bold uppercase">No New Alerts</p>
+                     ) : notifications.map(n => (
+                       <div key={n.id} className={`p-3 rounded-xl border-l-4 ${n.isRead ? 'border-transparent bg-slate-50 dark:bg-slate-800' : 'border-indiapost-red bg-red-50 dark:bg-red-900/10'}`}>
+                         <p className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase">{n.title}</p>
+                         <p className="text-[9px] text-slate-500 font-medium leading-tight mt-1">{n.message}</p>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+               )}
+            </div>
+            <div className="h-3 w-px bg-slate-200 dark:bg-slate-800"></div>
             <Link to="/login" className="hover:text-indiapost-red flex items-center gap-1 font-bold transition-colors">
                <UserCircle size={14} /> <span>{user ? user.name : 'Login'}</span>
             </Link>
@@ -228,82 +265,58 @@ const OfficialHeader = ({
         </div>
       </div>
 
-      {/* 2. Main Branding Section */}
       <div className="py-8 px-4 md:px-12">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-8">
-          
-          {/* Logo Group */}
           <div className="flex items-center gap-6 shrink-0">
-            <img src={emblemUrl} alt="Emblem of India" className="h-16 w-auto object-contain" />
-            <div className="h-16 w-px bg-indiapost-sand hidden md:block"></div>
+            <StateEmblem className="h-16 text-slate-900 dark:text-slate-100" />
+            <div className="h-16 w-px bg-slate-200 dark:border-slate-800 hidden md:block"></div>
             <div className="flex flex-col">
-              <h1 className="text-2xl md:text-3xl font-extrabold text-indiapost-red leading-tight tracking-tight font-serif italic">Department of Posts</h1>
-              <h2 className="text-xl md:text-2xl font-black text-stone-800 dark:text-white leading-none tracking-tight">Government of India</h2>
-              <p className="text-[10px] md:text-xs font-bold text-stone-400 uppercase tracking-widest mt-1">MINISTRY OF COMMUNICATIONS</p>
+              <IndiaPostLogo className="h-10 text-slate-900 dark:text-white" />
+              <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">MINISTRY OF COMMUNICATIONS • GOVT OF INDIA</p>
             </div>
           </div>
-
-          {/* Search bar with beige styling */}
           <div className="flex-grow max-w-lg w-full">
             <div className="relative group">
               <input 
                 type="text" 
-                placeholder="Namaste! What can I find for you?" 
-                className="w-full bg-white dark:bg-stone-900 border-2 border-indiapost-sand/30 dark:border-stone-800 py-3.5 px-6 outline-none focus:border-indiapost-red transition-all font-medium text-stone-600 dark:text-stone-300 rounded-2xl shadow-sm group-hover:shadow-md"
+                placeholder="Search Consignment or Article..." 
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-3.5 px-6 outline-none focus:border-indiapost-red transition-all font-medium text-slate-600 dark:text-slate-300 rounded-2xl"
               />
-              <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-indiapost-sand group-focus-within:text-indiapost-red transition-colors" size={20} />
+              <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indiapost-red transition-colors" size={20} />
             </div>
-          </div>
-
-          {/* Secondary Official Logos */}
-          <div className="flex items-center gap-8 shrink-0">
-            <div className="flex flex-col items-center">
-               <p className="text-[10px] font-black text-indiapost-red tracking-widest">INDIA POST</p>
-               <p className="text-[7px] font-bold text-stone-400 tracking-tighter uppercase">Dak Sewa Jan Sewa</p>
-            </div>
-            <img src={swachhBharatLogo} alt="Swachh Bharat" className="h-14 w-auto object-contain opacity-80" />
-            <img src={digitalIndiaLogo} alt="Digital India" className="h-12 w-auto object-contain opacity-80" />
           </div>
         </div>
       </div>
 
-      {/* 3. Navigation Bar */}
-      <nav className="bg-white/80 dark:bg-stone-900/80 backdrop-blur-md border-y border-indiapost-sand/50 dark:border-stone-800">
+      <nav className="bg-white/80 dark:bg-black/80 backdrop-blur-md border-t border-slate-100 dark:border-slate-900">
         <div className="max-w-7xl mx-auto px-4 md:px-12 flex flex-col md:flex-row items-center justify-between">
           <ul className="flex flex-wrap gap-1 text-[11px] font-black uppercase tracking-tight w-full md:w-auto">
             {user?.role === 'user' ? (
               <>
-                <li><Link to="/" className="block py-4 px-5 hover:bg-indiapost-beige dark:hover:bg-stone-800 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_home}</Link></li>
-                <li><Link to="/submit" className="block py-4 px-5 hover:bg-indiapost-beige dark:hover:bg-stone-800 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_submit}</Link></li>
-                <li><Link to="/track" className="block py-4 px-5 hover:bg-indiapost-beige dark:hover:bg-stone-800 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_track}</Link></li>
-                <li><Link to="/menu" className="block py-4 px-5 hover:bg-indiapost-beige dark:hover:bg-stone-800 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_records}</Link></li>
+                <li><Link to="/" className="block py-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_home}</Link></li>
+                <li><Link to="/submit" className="block py-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_submit}</Link></li>
+                <li><Link to="/track" className="block py-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_track}</Link></li>
+                <li><Link to="/menu" className="block py-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_records}</Link></li>
               </>
             ) : user ? (
               <>
-                <li><Link to="/" className="block py-4 px-5 hover:bg-indiapost-beige dark:hover:bg-stone-800 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_queue}</Link></li>
-                <li><Link to="/reports" className="block py-4 px-5 hover:bg-indiapost-beige dark:hover:bg-stone-800 transition-colors border-b-2 border-transparent hover:border-indiapost-red">{t.nav_insights}</Link></li>
+                <li><Link to="/" className="block py-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors border-b-2 border-transparent hover:border-indiapost-red">Command Center</Link></li>
               </>
             ) : (
-              <li><Link to="/login" className="block py-4 px-5 hover:bg-indiapost-beige dark:hover:bg-stone-800 transition-colors border-b-2 border-transparent hover:border-indiapost-red">CITIZEN PORTAL</Link></li>
+              <li><Link to="/login" className="block py-4 px-5 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors border-b-2 border-transparent hover:border-indiapost-red">CITIZEN PORTAL</Link></li>
             )}
           </ul>
-          
           {user && (
-            <div className="flex items-center gap-4 py-4 md:py-0 border-t md:border-t-0 md:border-l border-indiapost-sand/50 dark:border-stone-800 pl-4">
+            <div className="flex items-center gap-4 py-4 md:py-0 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-800 pl-4">
               <div className="text-right">
-                <p className="text-[9px] font-black text-indiapost-red uppercase leading-none">{user.role !== 'user' ? t.admin_portal : t.citizen_portal}</p>
-                <p className="text-[11px] font-black text-stone-800 dark:text-white uppercase leading-tight">{user.name}</p>
+                <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase leading-tight">{user.name}</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase">{user.role}</p>
               </div>
-              <button onClick={onLogout} className="text-indiapost-sand hover:text-indiapost-red p-2 hover:bg-indiapost-beige dark:hover:bg-stone-800 rounded-xl transition-all shadow-sm">
+              <button onClick={onLogout} className="text-slate-400 hover:text-indiapost-red p-2 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-xl transition-all">
                 <LogOut size={16} />
               </button>
             </div>
           )}
-          
-          <div className="hidden lg:flex items-center gap-2 text-[11px] font-black text-indiapost-red uppercase ml-6 border-l border-indiapost-sand/50 pl-6 h-10 my-auto">
-            <Phone size={14} className="opacity-70" /> 
-            <span>1800 266 6868</span>
-          </div>
         </div>
       </nav>
     </header>
@@ -313,8 +326,10 @@ const OfficialHeader = ({
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [lang, setLang] = useState<Language>('en');
+  const [isLiveOpen, setIsLiveOpen] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -338,10 +353,19 @@ const App: React.FC = () => {
     localStorage.setItem('complaints', JSON.stringify(updated));
   };
 
+  const handleUpdateFeedback = (id: string, rating: number, comment: string) => {
+    const updated = complaints.map(c => c.id === id ? { ...c, feedback: { rating, comment, timestamp: new Date().toISOString() } } : c);
+    handleUpdateComplaints(updated);
+  };
+
   const addComplaint = (newComplaint: Complaint) => {
     const updated = [newComplaint, ...complaints];
-    setComplaints(updated);
-    localStorage.setItem('complaints', JSON.stringify(updated));
+    handleUpdateComplaints(updated);
+  };
+
+  const markNotificationsRead = () => {
+    const updated = notifications.map(n => ({ ...n, isRead: true }));
+    setNotifications(updated);
   };
 
   const toggleTheme = () => {
@@ -354,12 +378,10 @@ const App: React.FC = () => {
   return (
     <LangContext.Provider value={{ lang, setLang, t }}>
       <Router>
-        <div className="min-h-screen flex flex-col bg-indiapost-beige dark:bg-stone-950 transition-colors">
+        <div className="min-h-screen flex flex-col bg-white dark:bg-black transition-colors">
           <OfficialHeader 
-            user={user} 
-            onLogout={handleLogout} 
-            isDark={isDarkMode} 
-            toggleTheme={toggleTheme} 
+            user={user} onLogout={handleLogout} isDark={isDarkMode} toggleTheme={toggleTheme} 
+            notifications={notifications} markAllRead={markNotificationsRead} onOpenLive={() => setIsLiveOpen(true)}
           />
 
           <main className="flex-grow max-w-7xl mx-auto w-full py-12 px-4">
@@ -368,23 +390,12 @@ const App: React.FC = () => {
               <Route path="/" element={user ? (user.role === 'user' ? <Dashboard user={user} complaints={complaints} /> : <AdminTickets complaints={complaints} user={user} onUpdate={handleUpdateComplaints} />) : <Navigate to="/login" />} />
               <Route path="/submit" element={user?.role === 'user' ? <SubmitComplaint user={user} onSubmit={addComplaint} existingComplaints={complaints} /> : <Navigate to="/login" />} />
               <Route path="/track" element={user?.role === 'user' ? <TrackStatus complaints={complaints} /> : <Navigate to="/login" />} />
-              <Route path="/menu" element={user?.role === 'user' ? <ComplaintMenu complaints={complaints} /> : <Navigate to="/login" />} />
+              <Route path="/menu" element={user?.role === 'user' ? <ComplaintMenu complaints={complaints} onUpdateFeedback={handleUpdateFeedback} /> : <Navigate to="/login" />} />
             </Routes>
           </main>
 
-          {user?.role === 'user' && <ChatAssistant />}
-
-          <footer className="bg-indiapost-cream/30 dark:bg-stone-900 border-t border-indiapost-sand/30 dark:border-stone-800 py-16 transition-colors">
-            <div className="max-w-7xl mx-auto px-4 text-center">
-              <p className="text-[11px] text-indiapost-sand font-black uppercase tracking-[0.4em] mb-6">{t.footer_text}</p>
-              <p className="text-[10px] text-stone-500 max-w-2xl mx-auto leading-relaxed font-medium uppercase tracking-widest">{t.footer_subtext}</p>
-              <div className="flex justify-center gap-10 mt-12 text-[10px] font-black text-indiapost-sand uppercase tracking-[0.3em]">
-                <a href="#" className="hover:text-indiapost-red transition-colors">{t.privacy}</a>
-                <a href="#" className="hover:text-indiapost-red transition-colors">{t.terms}</a>
-                <a href="#" className="hover:text-indiapost-red transition-colors">{t.charter}</a>
-              </div>
-            </div>
-          </footer>
+          {user?.role === 'user' && <ChatAssistant complaints={complaints} />}
+          {isLiveOpen && <LiveVoiceAssistant onClose={() => setIsLiveOpen(false)} />}
         </div>
       </Router>
     </LangContext.Provider>
