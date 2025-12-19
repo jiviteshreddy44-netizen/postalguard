@@ -2,30 +2,34 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ComplaintAnalysis } from "../types";
 
-export const analyzeComplaint = async (description: string, imageUrl?: string, context?: string): Promise<ComplaintAnalysis> => {
+export const analyzeComplaint = async (description: string, imageUrl?: string, context?: string, trackingNumber?: string): Promise<ComplaintAnalysis> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = "gemini-3-flash-preview";
   
   const systemInstruction = `
-    You are an intelligent processing layer for the Indian Postal Service. 
-    Role: Analyze incoming grievances to assist staff in faster resolution.
+    You are an official digital assistant for Posty (a smart redressal system). 
+    Your role is to help summarize incoming complaints for staff to review quickly.
     
-    CRITICAL RULES:
-    1. Multilingual: If input is Hindi, Hinglish, or regional, normalize it to clear English in 'translatedText'.
-    2. Classification: Categorize into: Delivery Delay, Lost Parcel, Damaged Item, Wrong Delivery, Staff Misconduct, Refund/Payment Issue, or Other.
-    3. Sentiment: Detect 'Positive', 'Neutral', 'Frustrated', or 'Angry'.
-    4. Priority: Assign 'Low', 'Medium', 'High', or 'Urgent' based on severity and keywords (e.g. passport, medicine, pension).
-    5. Entities: Extract tracking numbers (e.g. EB123456789IN), 6-digit PIN codes, and city/office names.
-    6. Routing: Based on PIN or Office, suggest a 'routingOffice'.
-    7. Draft Response: Create a FORMAL, GOVERNMENT-SAFE response. Acknowledge the issue, state that it is under review. Do NOT make promises or admit fault.
-    8. Duplicates: Use the provided context to check if this seems like a duplicate of previous reports.
-    
-    Return structured JSON.
+    GUIDELINES:
+    - Avoid using technical jargon like "AI", "algorithm", "triage", or "machine learning".
+    - Use simple, professional language that citizens and staff can easily understand.
+    - URGENCY LEVEL (1-100):
+       - 90-100: Critical / Essential (Medicines, Passport, Legal documents, Pension, Exam results).
+       - 70-89: Time-sensitive (Business items, Delivery delays over 5 days).
+       - 40-69: Standard issues.
+       - 1-39: General queries.
+    - DEADLINE: Calculate a reasonable response time based on urgency.
+    - DUPLICATE CHECK: Check if this looks like a repeat of previous complaints in the context provided.
+    - TRANSLATION: If the user writes in Hindi or Telugu, provide a professional English version in 'translatedText'.
+    - CATEGORY: Pick one: Delivery Delay, Lost Parcel, Damaged Item, Wrong Delivery, Staff Misconduct, Refund/Payment Issue, or Other.
   `;
 
+  const now = new Date().toISOString();
   const parts: any[] = [
-    { text: `Current Context (Previous Complaints): ${context || "None"}` },
-    { text: `User Input: ${description}` }
+    { text: `Today's Date: ${now}` },
+    { text: `Provided Tracking Number: ${trackingNumber || "Not provided"}` },
+    { text: `Previous records for reference: ${context || "None"}` },
+    { text: `User's complaint: ${description}` }
   ];
   
   if (imageUrl) {
@@ -47,13 +51,16 @@ export const analyzeComplaint = async (description: string, imageUrl?: string, c
             category: { type: Type.STRING },
             sentiment: { type: Type.STRING },
             priority: { type: Type.STRING },
+            priorityScore: { type: Type.INTEGER },
             tags: { type: Type.ARRAY, items: { type: Type.STRING } },
             suggestedResponse: { type: Type.STRING },
             summary: { type: Type.STRING },
             translatedText: { type: Type.STRING },
+            routingOffice: { type: Type.STRING },
+            slaDeadline: { type: Type.STRING },
             isPotentialDuplicate: { type: Type.BOOLEAN },
             duplicateConfidence: { type: Type.NUMBER },
-            routingOffice: { type: Type.STRING },
+            duplicateOfId: { type: Type.STRING },
             entities: {
               type: Type.OBJECT,
               properties: {
@@ -64,36 +71,41 @@ export const analyzeComplaint = async (description: string, imageUrl?: string, c
               }
             }
           },
-          required: ["category", "sentiment", "priority", "tags", "suggestedResponse", "summary", "translatedText", "entities", "routingOffice"]
+          required: ["category", "sentiment", "priority", "priorityScore", "tags", "suggestedResponse", "summary", "translatedText", "entities", "routingOffice", "slaDeadline", "isPotentialDuplicate"]
         }
       }
     });
 
     return JSON.parse(response.text || "{}");
   } catch (error) {
-    console.error("Smart processing failed:", error);
+    console.error("Analysis failed:", error);
+    const fallbackDate = new Date();
+    fallbackDate.setHours(fallbackDate.getHours() + 72);
     return {
       category: "Other",
       sentiment: "Neutral",
       priority: "Medium",
-      tags: ["manual-triage"],
-      suggestedResponse: "Grievance received. Under manual review.",
-      summary: "Processing error. Manual check required.",
+      priorityScore: 50,
+      tags: ["review-needed"],
+      suggestedResponse: "We have received your complaint and an officer will review it shortly.",
+      summary: "Automatic summary unavailable. Please read description.",
       translatedText: description,
-      entities: {},
-      routingOffice: "General HQ"
+      entities: { tracking_number: trackingNumber },
+      routingOffice: "General",
+      slaDeadline: fallbackDate.toISOString(),
+      isPotentialDuplicate: false
     };
   }
 };
 
-export const getQuickSupport = async (query: string) => {
+export const getQuickSupport = async (query: string): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: "gemini-3-flash-preview",
     contents: query,
     config: {
-      systemInstruction: "You are 'Dak-Mitra', the official India Post digital assistant. Be professional, concise, and helpful."
-    }
+      systemInstruction: "You are Dak-Mitra, an official digital friend from Posty. Help citizens with tracking, finding pin codes, and filing complaints. Use very simple and polite language. Avoid technical words.",
+    },
   });
-  return response.text;
+  return response.text || "Maaf kijiye, main abhi madad nahi kar sakta. (Sorry, I cannot help right now.)";
 };

@@ -1,576 +1,682 @@
 
 import React, { useState, useMemo } from 'react';
-import { Complaint, ComplaintStatus, TicketUpdate } from '../types';
+import { Complaint, ComplaintStatus, TicketUpdate, User } from '../types';
 import { 
   Search, 
-  MessageSquare, 
   CheckCircle, 
-  MoreVertical, 
-  Activity, 
-  Smile, 
-  Frown, 
-  Meh, 
-  Send,
-  MapPin,
-  Tag as TagIcon,
-  ShieldCheck,
-  Inbox,
-  User as UserIcon,
-  ChevronDown,
-  Paperclip,
-  Hash,
-  Star,
+  Clock, 
+  ShieldCheck, 
   Zap,
   RotateCcw,
-  Languages,
-  Locate,
-  Navigation,
-  Copy,
-  AlertTriangle,
-  Building,
-  Target,
-  BarChart3,
+  User as UserIcon,
+  Send,
+  Lock,
+  Flag,
+  Inbox,
+  CheckSquare,
+  Square,
+  Activity,
+  History,
+  X,
+  ChevronRight,
+  LayoutGrid,
+  BarChart,
+  MessageCircle,
+  AlertCircle,
+  Settings,
   Users,
-  Clock,
-  ArrowUpRight
+  Briefcase,
+  FileText,
+  Filter,
+  ArrowUpRight,
+  MoreVertical,
+  HelpCircle,
+  Plus,
+  TrendingUp,
+  PieChart,
+  Calendar
 } from 'lucide-react';
 
 interface AdminProps {
   complaints: Complaint[];
+  user: User;
+  onUpdate: (updatedComplaints: Complaint[]) => void;
 }
 
-const AdminTickets: React.FC<AdminProps> = ({ complaints: initialComplaints }) => {
+type AdminView = 'queue' | 'activity' | 'flagged' | 'citizens' | 'staff' | 'reports' | 'settings';
+
+const AdminTickets: React.FC<AdminProps> = ({ complaints: initialComplaints, user, onUpdate }) => {
+  const [activeView, setActiveView] = useState<AdminView>('queue');
   const [complaints, setComplaints] = useState<Complaint[]>(initialComplaints);
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(complaints[0]?.id || null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reply, setReply] = useState('');
   const [isInternal, setIsInternal] = useState(false);
-  const [currentView, setCurrentView] = useState<'all' | 'unassigned' | 'solved' | 'trends'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  
+  const [selectedBulkIds, setSelectedBulkIds] = useState<Set<string>>(new Set());
 
   const selectedTicket = useMemo(() => 
-    complaints.find(c => c.id === selectedTicketId) || null, 
-    [complaints, selectedTicketId]
+    complaints.find(c => c.id === selectedId) || null, 
+    [complaints, selectedId]
   );
 
-  const filteredComplaints = useMemo(() => {
+  const filtered = useMemo(() => {
     return complaints.filter(c => {
       const matchesSearch = c.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           c.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            c.description.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!matchesSearch) return false;
-      if (currentView === 'unassigned') return !c.assignedAgent;
-      if (currentView === 'solved') return c.status === ComplaintStatus.SOLVED;
-      return true;
-    });
-  }, [complaints, currentView, searchQuery]);
+      const matchesStatus = filterStatus === 'all' || c.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    }).sort((a, b) => (b.analysis?.priorityScore || 0) - (a.analysis?.priorityScore || 0));
+  }, [complaints, searchQuery, filterStatus]);
 
-  // Analytics helper functions
-  const analytics = useMemo(() => {
-    const total = complaints.length;
-    const resolved = complaints.filter(c => c.status === ComplaintStatus.SOLVED).length;
-    const urgent = complaints.filter(c => c.analysis?.priority === 'Urgent').length;
-    const avgRating = complaints.reduce((acc, c) => acc + (c.feedback?.rating || 0), 0) / 
-                      (complaints.filter(c => c.feedback).length || 1);
-    
-    const categoryStats = complaints.reduce((acc: any, c) => {
-      const cat = c.analysis?.category || 'Other';
-      acc[cat] = (acc[cat] || 0) + 1;
-      return acc;
-    }, {});
-
-    return { total, resolved, urgent, avgRating, categoryStats };
-  }, [complaints]);
-
-  const getSentimentIcon = (sentiment?: string) => {
-    switch(sentiment) {
-      case 'Angry': return <Frown className="text-red-500" size={16} />;
-      case 'Frustrated': return <Frown className="text-orange-500" size={16} />;
-      case 'Neutral': return <Meh className="text-slate-400" size={16} />;
-      case 'Positive': return <Smile className="text-green-500" size={16} />;
-      default: return <Meh className="text-slate-400" size={16} />;
-    }
+  const toggleBulkId = (id: string) => {
+    const next = new Set(selectedBulkIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedBulkIds(next);
   };
 
   const handleStatusChange = (status: ComplaintStatus) => {
-    if (!selectedTicketId) return;
-    setComplaints(prev => prev.map(c => 
-      c.id === selectedTicketId ? { ...c, status } : c
-    ));
+    if (!selectedId) return;
+    const newUpdate: TicketUpdate = {
+      timestamp: new Date().toISOString(),
+      author: user.name,
+      message: `Status updated to ${status}.`,
+      isInternal: true,
+      type: 'status_change'
+    };
+    const updated = complaints.map(c => 
+      c.id === selectedId ? { ...c, status, updates: [...c.updates, newUpdate] } : c
+    );
+    setComplaints(updated);
+    onUpdate(updated);
   };
 
   const handleReply = () => {
-    if (!selectedTicketId || !reply.trim()) return;
+    if (!selectedId || !reply.trim()) return;
     const newUpdate: TicketUpdate = {
       timestamp: new Date().toISOString(),
-      author: 'Admin Staff',
+      author: user.name,
       message: reply,
-      isInternal
+      isInternal,
+      type: 'message'
     };
-    setComplaints(prev => prev.map(c => 
-      c.id === selectedTicketId ? { ...c, updates: [...c.updates, newUpdate] } : c
-    ));
+    const updated = complaints.map(c => 
+      c.id === selectedId ? { ...c, updates: [...c.updates, newUpdate] } : c
+    );
+    setComplaints(updated);
+    onUpdate(updated);
     setReply('');
   };
 
-  if (currentView === 'trends') {
-    return (
-      <div className="flex-grow p-8 bg-slate-950 overflow-y-auto">
-        <div className="max-w-6xl mx-auto">
-          <header className="mb-10 flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-black text-white tracking-tighter uppercase">Department Analytics</h1>
-              <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">Resolution Protocol Monitoring</p>
-            </div>
-            <button onClick={() => setCurrentView('all')} className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-2xl text-sm font-black text-white flex items-center gap-2 hover:bg-slate-800 transition shadow-xl">
-              <Inbox size={18} /> Back to Triage
-            </button>
-          </header>
+  const getPriorityColor = (score: number) => {
+    if (score >= 90) return 'text-red-600 bg-red-50';
+    if (score >= 70) return 'text-orange-600 bg-orange-50';
+    if (score >= 40) return 'text-blue-600 bg-blue-50';
+    return 'text-green-600 bg-green-50';
+  };
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-            <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl border border-slate-800">
-               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Total Registry</p>
-               <p className="text-4xl font-black text-white tracking-tighter">{analytics.total}</p>
-               <div className="mt-6 flex items-center gap-1.5 text-green-500 text-[10px] font-black uppercase">
-                 <ArrowUpRight size={14} /> 12.4% Productivity
-               </div>
-            </div>
-            <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl border border-slate-800">
-               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Resolution Rate</p>
-               <p className="text-4xl font-black text-green-500 tracking-tighter">{Math.round((analytics.resolved/analytics.total)*100)}%</p>
-               <div className="mt-6 w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
-                  <div className="bg-green-500 h-full shadow-[0_0_10px_rgba(34,197,94,0.5)]" style={{ width: `${(analytics.resolved/analytics.total)*100}%` }}></div>
-               </div>
-            </div>
-            <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl border border-slate-800">
-               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Critical Triage</p>
-               <p className="text-4xl font-black text-red-600 tracking-tighter">{analytics.urgent}</p>
-               <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest mt-6 animate-pulse">Action Required</p>
-            </div>
-            <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl border border-slate-800">
-               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Citizen Satisfaction</p>
-               <div className="flex items-center gap-3">
-                 <p className="text-4xl font-black text-white tracking-tighter">{analytics.avgRating.toFixed(1)}</p>
-                 <Star className="text-yellow-400 fill-yellow-400" size={24} />
-               </div>
-               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-6">Protocol Rating</p>
-            </div>
-          </div>
+  const getStatusColor = (status: ComplaintStatus) => {
+    switch(status) {
+      case ComplaintStatus.OPEN: return 'text-amber-600 bg-amber-50';
+      case ComplaintStatus.SOLVED: return 'text-green-600 bg-green-50';
+      case ComplaintStatus.PENDING: return 'text-blue-600 bg-blue-50';
+      default: return 'text-stone-600 bg-stone-50';
+    }
+  };
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-             <div className="bg-slate-900 p-10 rounded-[2.5rem] shadow-2xl border border-slate-800">
-                <h3 className="font-black text-white text-xl mb-8 flex items-center gap-3 uppercase tracking-tighter">
-                   <div className="bg-red-600/10 p-2 rounded-xl border border-red-600/20">
-                    <BarChart3 size={20} className="text-red-600" />
-                   </div>
-                   Domain Distribution
-                </h3>
-                <div className="space-y-6">
-                   {Object.entries(analytics.categoryStats).map(([cat, count]: [string, any]) => (
-                     <div key={cat}>
-                        <div className="flex justify-between text-[10px] mb-2 font-black uppercase tracking-widest">
-                           <span className="text-slate-400">{cat}</span>
-                           <span className="text-white">{count} Units</span>
-                        </div>
-                        <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800">
-                           <div className="bg-red-600 h-full" style={{ width: `${(count/analytics.total)*100}%` }}></div>
-                        </div>
-                     </div>
-                   ))}
-                </div>
-             </div>
+  const renderQueue = () => (
+    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 flex flex-col flex-grow shadow-sm overflow-hidden animate-in fade-in duration-500">
+      {/* Table Header & Tabs */}
+      <div className="p-6 border-b border-stone-100 dark:border-stone-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+         <div className="flex items-center gap-8 border-b md:border-b-0 border-stone-100">
+           {['all', 'OPEN', 'PENDING', 'SOLVED'].map(s => (
+             <button 
+               key={s}
+               onClick={() => setFilterStatus(s)}
+               className={`pb-4 px-2 text-[11px] font-black uppercase tracking-widest transition-all relative ${
+                 filterStatus === s ? 'text-blue-600' : 'text-stone-400 hover:text-stone-600'
+               }`}
+             >
+               {s} Cases
+               {filterStatus === s && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 animate-in fade-in zoom-in duration-300"></div>}
+             </button>
+           ))}
+         </div>
 
-             <div className="bg-slate-900 p-10 rounded-[2.5rem] shadow-2xl border border-slate-800">
-                <h3 className="font-black text-white text-xl mb-8 flex items-center gap-3 uppercase tracking-tighter">
-                   <div className="bg-yellow-400/10 p-2 rounded-xl border border-yellow-400/20">
-                    <Users size={20} className="text-yellow-400" />
-                   </div>
-                   Experience Logs
-                </h3>
-                <div className="space-y-6">
-                   {complaints.filter(c => c.feedback).slice(0, 4).map(c => (
-                     <div key={c.id} className="p-5 bg-slate-950 rounded-2xl border border-slate-800 transition-all hover:border-slate-700">
-                        <div className="flex justify-between mb-2">
-                           <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">DOCKET #{c.id}</span>
-                           <div className="flex gap-1">
-                              {[...Array(5)].map((_, i) => (
-                                <Star key={i} size={10} className={i < (c.feedback?.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-slate-800'} />
-                              ))}
-                           </div>
-                        </div>
-                        <p className="text-sm text-slate-400 italic leading-relaxed">"{c.feedback?.comment}"</p>
-                     </div>
-                   ))}
-                   {complaints.filter(c => c.feedback).length === 0 && (
-                     <div className="h-full flex flex-col items-center justify-center text-slate-700 p-10 opacity-50">
-                        <Activity size={48} className="mb-4" />
-                        <p className="text-xs font-black uppercase tracking-widest">No Feedback Streamed</p>
-                     </div>
-                   )}
-                </div>
-             </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex-grow flex h-[calc(100vh-64px)] overflow-hidden bg-slate-950">
-      {/* 1. Side Navigation */}
-      <div className="w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800">
-        <div className="p-6 flex items-center gap-4 border-b border-slate-800 bg-slate-900/50">
-          <div className="bg-red-600 p-2 rounded-xl shadow-lg shadow-red-900/20">
-             <ShieldCheck size={20} className="text-white" />
-          </div>
-          <span className="font-black text-white tracking-tighter uppercase text-lg">Staff Unit</span>
-        </div>
-        
-        <nav className="flex-grow py-6 overflow-y-auto custom-scrollbar">
-          <p className="px-6 text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-4">Grievance Hub</p>
-          <button 
-            onClick={() => setCurrentView('all')}
-            className={`w-full flex items-center gap-3 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${currentView === 'all' ? 'bg-slate-850 text-white border-l-4 border-red-600 shadow-inner' : 'hover:bg-slate-850/50 text-slate-500'}`}
-          >
-            <Inbox size={18} /> Master Registry
-            <span className="ml-auto bg-slate-800 text-[9px] px-2 py-0.5 rounded-full border border-slate-700">{complaints.length}</span>
-          </button>
-          <button 
-            onClick={() => setCurrentView('unassigned')}
-            className={`w-full flex items-center gap-3 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${currentView === 'unassigned' ? 'bg-slate-850 text-white border-l-4 border-red-600 shadow-inner' : 'hover:bg-slate-850/50 text-slate-500'}`}
-          >
-            <Star size={18} /> New Triage
-          </button>
-          <button 
-            onClick={() => setCurrentView('solved')}
-            className={`w-full flex items-center gap-3 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${currentView === 'solved' ? 'bg-slate-850 text-white border-l-4 border-red-600 shadow-inner' : 'hover:bg-slate-850/50 text-slate-500'}`}
-          >
-            <CheckCircle size={18} /> Resolved
-          </button>
-          
-          <div className="mt-10">
-            <p className="px-6 text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-4">Unit Control</p>
-            <button 
-              onClick={() => setCurrentView('trends')}
-              className={`w-full flex items-center gap-3 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${(currentView as string) === 'trends' ? 'bg-slate-850 text-white border-l-4 border-red-600 shadow-inner' : 'hover:bg-slate-850/50 text-slate-500'}`}
-            >
-              <BarChart3 size={18} /> Analytics Core
-            </button>
-            <button className="w-full flex items-center gap-3 px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-850/50 transition-all">
-              <Zap size={18} /> Semantic Search
-            </button>
-          </div>
-        </nav>
-        
-        <div className="p-6 border-t border-slate-800">
-           <div className="bg-slate-850/50 rounded-2xl p-4 border border-slate-800">
-              <div className="flex items-center gap-3 mb-2">
-                 <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.6)]"></div>
-                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Neural Layer Active</span>
-              </div>
-              <p className="text-[10px] text-slate-600 leading-relaxed font-bold">Multilingual auto-normalization engine is processing live incoming data.</p>
+         <div className="flex items-center gap-3">
+           <div className="relative">
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-300" size={14} />
+             <input 
+               type="text" 
+               placeholder="Search records..." 
+               className="pl-10 pr-4 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-xl text-xs font-bold outline-none focus:border-blue-500 transition-all w-64"
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+             />
            </div>
-        </div>
+           <button className="p-2 border border-stone-100 dark:border-stone-700 rounded-lg text-stone-400 hover:bg-stone-50 transition-colors">
+             <Filter size={16} />
+           </button>
+         </div>
       </div>
 
-      {/* 2. Ticket List Panel */}
-      <div className="w-96 bg-slate-950 border-r border-slate-800 flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-slate-800 bg-slate-950 sticky top-0 z-10">
-          <div className="relative group">
-            <Search className="absolute left-4 top-3.5 text-slate-600 group-focus-within:text-red-600 transition-colors" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search registry..." 
-              className="w-full pl-12 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600/50 transition-all placeholder:text-slate-700"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="flex-grow overflow-y-auto custom-scrollbar">
-          {filteredComplaints.length === 0 ? (
-            <div className="p-20 text-center text-slate-700 italic text-sm font-bold uppercase tracking-widest opacity-50">Empty Registry</div>
-          ) : (
-            filteredComplaints.map(c => (
-              <button 
-                key={c.id}
-                onClick={() => setSelectedTicketId(c.id)}
-                className={`w-full p-6 border-b border-slate-900 text-left transition-all relative ${selectedTicketId === c.id ? 'bg-slate-900 border-l-4 border-l-red-600 shadow-2xl z-10' : 'hover:bg-slate-900/50'}`}
+      {/* The Main Table */}
+      <div className="flex-grow overflow-y-auto custom-scrollbar relative">
+        <table className="w-full text-left border-collapse">
+          <thead className="sticky top-0 bg-stone-50 dark:bg-stone-800 z-10 border-b border-stone-100 dark:border-stone-700">
+            <tr className="text-[10px] font-black text-stone-400 uppercase tracking-widest">
+              <th className="px-6 py-4 w-10"><Square size={14} /></th>
+              <th className="px-6 py-4">Options</th>
+              <th className="px-6 py-4">Ref Number</th>
+              <th className="px-6 py-4">Date</th>
+              <th className="px-6 py-4">Sender</th>
+              <th className="px-6 py-4">Location</th>
+              <th className="px-6 py-4">Category</th>
+              <th className="px-6 py-4">Priority Score</th>
+              <th className="px-6 py-4">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
+            {filtered.map(c => (
+              <tr 
+                key={c.id} 
+                className={`group hover:bg-blue-50/30 dark:hover:bg-blue-900/5 transition-colors cursor-pointer ${selectedId === c.id ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                onClick={() => setSelectedId(c.id)}
               >
-                <div className="flex justify-between items-start mb-2">
-                   <div className="flex items-center gap-2">
-                     <div className={`w-2 h-2 rounded-full ${c.status === ComplaintStatus.OPEN ? 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]' : c.status === ComplaintStatus.PENDING ? 'bg-blue-400' : 'bg-green-500'}`}></div>
-                     <span className="font-black text-white text-xs tracking-tighter uppercase">#{c.id}</span>
-                   </div>
-                   <span className="text-[10px] text-slate-600 font-black">{new Date(c.date).toLocaleDateString()}</span>
-                </div>
-                <h3 className="text-xs font-bold text-slate-400 truncate mb-2">{c.description}</h3>
-                <div className="flex items-center gap-2 mt-3">
-                  <span className={`text-[9px] px-2 py-1 rounded-lg font-black uppercase tracking-wider border ${c.analysis?.priority === 'Urgent' ? 'bg-red-600/10 text-red-500 border-red-600/20' : 'bg-slate-800 text-slate-600 border-slate-700'}`}>
-                    {c.analysis?.priority}
+                <td className="px-6 py-4">
+                  <input type="checkbox" className="accent-blue-600" checked={selectedBulkIds.has(c.id)} onChange={() => toggleBulkId(c.id)} onClick={(e) => e.stopPropagation()} />
+                </td>
+                <td className="px-6 py-4">
+                  <button className="p-1 hover:bg-white dark:hover:bg-stone-700 rounded transition-all text-stone-400"><MoreVertical size={14} /></button>
+                </td>
+                <td className="px-6 py-4 text-xs font-black text-indiapost-red">{c.id}</td>
+                <td className="px-6 py-4 text-[11px] font-bold text-stone-400">{new Date(c.date).toLocaleDateString()}</td>
+                <td className="px-6 py-4 text-xs font-bold text-stone-700 dark:text-stone-300">{c.userName}</td>
+                <td className="px-6 py-4 text-[11px] font-bold text-stone-400 uppercase tracking-tighter">{c.postOffice}</td>
+                <td className="px-6 py-4">
+                  <span className="text-[11px] font-bold text-stone-600 dark:text-stone-400">{c.analysis?.category || 'General'}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-4 py-1.5 rounded-lg text-xs font-black tabular-nums transition-colors ${getPriorityColor(c.analysis?.priorityScore || 0)}`}>
+                    {c.analysis?.priorityScore || 0}
                   </span>
-                  {c.analysis?.isPotentialDuplicate && (
-                    <span className="bg-orange-500/10 text-orange-500 text-[9px] px-2 py-1 rounded-lg font-black flex items-center gap-1 border border-orange-500/20">
-                      <Copy size={10} /> DUP
-                    </span>
-                  )}
-                  {c.feedback && (
-                    <div className="flex ml-auto items-center gap-1">
-                       <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                       <span className="text-[10px] font-black text-slate-400">{c.feedback.rating}</span>
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(c.status)}`}>
+                    {c.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-      {/* 3. Ticket Detail & Intelligence Dashboard */}
-      <div className="flex-grow flex flex-col bg-slate-950">
-        {selectedTicket ? (
-          <div className="flex flex-col h-full animate-in fade-in duration-500">
-            {/* Ticket Header */}
-            <header className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/50 backdrop-blur-md">
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl font-black text-white tracking-tighter uppercase">#{selectedTicket.id}</span>
-                  <div className="relative group">
-                    <button className="flex items-center gap-2 px-4 py-1.5 bg-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 border border-slate-800 hover:bg-slate-800 transition-all">
-                      {selectedTicket.status} <ChevronDown size={14} />
-                    </button>
-                    <div className="absolute hidden group-hover:block top-full left-0 mt-2 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 w-40 animate-in fade-in zoom-in duration-200">
-                       {Object.values(ComplaintStatus).map(s => (
-                         <button key={s} onClick={() => handleStatusChange(s)} className="w-full text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-slate-850 rounded-xl text-slate-400 hover:text-white transition-all">{s}</button>
-                       ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="h-8 w-px bg-slate-800 mx-2"></div>
-                <div className="flex items-center gap-2 text-xs text-slate-500 font-black uppercase tracking-widest">
-                  <UserIcon size={16} className="text-slate-700" /> {selectedTicket.userId}
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button className="p-2.5 hover:bg-slate-900 rounded-xl text-slate-600 transition-all hover:text-white border border-transparent hover:border-slate-800"><RotateCcw size={20} /></button>
-                <button className="p-2.5 hover:bg-slate-900 rounded-xl text-slate-600 transition-all hover:text-white border border-transparent hover:border-slate-800"><MoreVertical size={20} /></button>
-              </div>
-            </header>
-
-            <div className="flex-grow flex overflow-hidden">
-              {/* Conversation Area */}
-              <div className="flex-grow flex flex-col overflow-hidden">
-                <div className="flex-grow p-8 overflow-y-auto space-y-10 bg-slate-950 custom-scrollbar">
-                  
-                  {selectedTicket.analysis?.isPotentialDuplicate && (
-                    <div className="bg-orange-500/5 border border-orange-500/20 p-6 rounded-3xl flex items-start gap-5 shadow-2xl">
-                       <div className="bg-orange-500/10 p-3 rounded-2xl border border-orange-500/20">
-                          <AlertTriangle className="text-orange-500" size={24} />
-                       </div>
-                       <div>
-                          <p className="text-sm font-black text-orange-500 uppercase tracking-widest">Registry Conflict Alert</p>
-                          <p className="text-xs text-slate-400 mt-2 leading-relaxed font-medium">Confidence Score: {Math.round((selectedTicket.analysis.duplicateConfidence || 0) * 100)}%. Neural engine indicates this may be a redundant entry. Cross-reference with master registry before assigning resources.</p>
-                       </div>
-                    </div>
-                  )}
-
-                  {selectedTicket.analysis?.translatedText && selectedTicket.analysis?.translatedText !== selectedTicket.description && (
-                    <div className="bg-blue-600/5 border border-blue-600/20 p-6 rounded-3xl flex items-start gap-5 shadow-2xl">
-                      <div className="bg-blue-600/10 p-3 rounded-2xl border border-blue-600/20">
-                        <Languages className="text-blue-500" size={24} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Language Normalization Layer</p>
-                        <p className="text-sm text-slate-200 leading-relaxed font-bold italic">"{selectedTicket.analysis.translatedText}"</p>
-                        <p className="text-[10px] text-slate-600 mt-3 font-black flex items-center gap-2 uppercase tracking-widest">
-                          <Target size={12} /> Regional dialect detected and mapped to system core
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedTicket.updates.map((update, i) => (
-                    <div key={i} className="flex gap-6 group">
-                      <div className={`w-12 h-12 rounded-[1.25rem] flex-shrink-0 flex items-center justify-center font-black text-xs text-white shadow-2xl transition-all group-hover:scale-110 ${update.isInternal ? 'bg-orange-500 shadow-orange-900/20' : 'bg-red-600 shadow-red-900/20'}`}>
-                        {update.author.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex-grow">
-                        <div className="flex items-center gap-3 mb-3">
-                          <span className="text-xs font-black text-white uppercase tracking-widest">{update.author}</span>
-                          <span className="text-[10px] text-slate-600 font-bold uppercase">{new Date(update.timestamp).toLocaleTimeString()}</span>
-                          {update.isInternal && <span className="text-[9px] bg-orange-500/10 text-orange-500 px-3 py-1 rounded-lg font-black uppercase border border-orange-500/20 shadow-inner">Internal Protocol Note</span>}
-                        </div>
-                        <div className={`p-6 rounded-[2rem] text-sm leading-relaxed border shadow-xl transition-all ${update.isInternal ? 'bg-slate-900/50 border-orange-500/20 text-slate-300' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
-                          {update.message}
-                          {i === 0 && selectedTicket.imageUrl && (
-                             <div className="mt-6 pt-6 border-t border-slate-800">
-                                <img src={selectedTicket.imageUrl} alt="evidence" className="max-h-[500px] rounded-3xl shadow-2xl border border-slate-800 object-cover w-full" />
-                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Response Drafting Area */}
-                <div className="p-6 border-t border-slate-800 bg-slate-950">
-                  <div className="flex gap-4 mb-4">
-                    <button 
-                      onClick={() => setIsInternal(false)}
-                      className={`text-[10px] font-black uppercase tracking-widest px-6 py-2.5 rounded-2xl transition-all border ${!isInternal ? 'bg-red-600 text-white border-red-500 shadow-xl -translate-y-1' : 'bg-slate-900 text-slate-600 border-slate-800 hover:bg-slate-800 hover:text-slate-400'}`}
-                    >
-                      Public Transmission
-                    </button>
-                    <button 
-                      onClick={() => setIsInternal(true)}
-                      className={`text-[10px] font-black uppercase tracking-widest px-6 py-2.5 rounded-2xl transition-all border ${isInternal ? 'bg-orange-500 text-white border-orange-400 shadow-xl -translate-y-1' : 'bg-slate-900 text-slate-600 border-slate-800 hover:bg-slate-800 hover:text-slate-400'}`}
-                    >
-                      Staff Protocol
-                    </button>
-                  </div>
-                  <div className="bg-slate-900 rounded-[2.5rem] border border-slate-800 overflow-hidden focus-within:ring-4 focus-within:ring-red-600/5 focus-within:border-red-600/30 transition-all shadow-2xl">
-                    <textarea 
-                      className="w-full bg-transparent p-6 text-sm focus:outline-none min-h-[160px] resize-none font-medium placeholder:text-slate-800 text-white"
-                      placeholder={isInternal ? "Log internal investigative findings or triage notes..." : "Draft official correspondence to citizen..."}
-                      value={reply}
-                      onChange={(e) => setReply(e.target.value)}
-                    />
-                    <div className="p-4 border-t border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-md">
-                      <div className="flex gap-3">
-                        <button className="p-2.5 hover:bg-slate-800 rounded-2xl text-slate-600 transition-all hover:text-white border border-slate-800"><Paperclip size={20} /></button>
-                        <button 
-                          onClick={() => setReply(selectedTicket.analysis?.suggestedResponse || '')}
-                          className="flex items-center gap-2 text-[10px] font-black text-red-500 px-5 py-2.5 bg-red-600/5 rounded-2xl hover:bg-red-600/10 transition shadow-inner border border-red-600/20"
-                        >
-                          <Zap size={16} className="fill-red-500" /> Apply Neural Draft
-                        </button>
-                      </div>
-                      <button 
-                        onClick={handleReply}
-                        className={`flex items-center gap-3 px-10 py-3 rounded-2xl text-xs font-black shadow-2xl transition transform active:scale-95 uppercase tracking-widest ${isInternal ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-red-600 text-white hover:bg-red-700'}`}
-                      >
-                        <Send size={18} /> {isInternal ? 'Log Record' : 'Transmit'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Intelligence Layer Dashboard (Right Sidebar) */}
-              <div className="w-[400px] border-l border-slate-800 bg-slate-900/30 overflow-y-auto p-8 space-y-10 shadow-inner custom-scrollbar">
-                
-                <section>
-                   <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-5">SLA Monitoring</p>
-                   <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-xl">
-                      <div className="flex justify-between items-center mb-4">
-                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Triage Window</span>
-                         <span className="text-xs font-black text-red-500 flex items-center gap-1.5 uppercase tracking-tighter"><Clock size={14} /> 18h 42m</span>
-                      </div>
-                      <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
-                         <div className="bg-red-600 h-full shadow-[0_0_10px_rgba(239,68,68,0.5)]" style={{ width: '65%' }}></div>
-                      </div>
-                   </div>
-                </section>
-
-                <section>
-                   <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-5">Automated Routing</p>
-                   <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl flex items-start gap-5 transition-all hover:border-slate-700">
-                      <div className="bg-red-600/10 p-3 rounded-2xl border border-red-600/20 shadow-inner">
-                         <Target size={22} className="text-red-500" />
-                      </div>
-                      <div>
-                         <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Target Office</p>
-                         <p className="text-sm font-black text-white leading-tight uppercase tracking-tighter">{selectedTicket.analysis?.routingOffice || 'Analyzing Vector...'}</p>
-                         <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest">Mapping: PIN {selectedTicket.analysis?.entities?.pin_code || 'TBD'}</p>
-                      </div>
-                   </div>
-                </section>
-
-                <section>
-                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-5">Neural Entities</p>
-                  <div className="space-y-3">
-                    <div className="bg-slate-900 px-5 py-4 rounded-2xl border border-slate-800 shadow-xl flex items-center justify-between group transition-all hover:bg-slate-850">
-                       <div className="flex items-center gap-3">
-                          <Navigation size={16} className="text-slate-600 group-hover:text-red-500 transition-colors" />
-                          <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Tracking #</span>
-                       </div>
-                       <span className="text-xs font-mono font-black text-red-500 bg-red-600/5 px-3 py-1 rounded-lg border border-red-600/10">{selectedTicket.analysis?.entities?.tracking_number || 'N/A'}</span>
-                    </div>
-                    <div className="bg-slate-900 px-5 py-4 rounded-2xl border border-slate-800 shadow-xl flex items-center justify-between group transition-all hover:bg-slate-850">
-                       <div className="flex items-center gap-3">
-                          <Locate size={16} className="text-slate-600 group-hover:text-red-500 transition-colors" />
-                          <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Pin Index</span>
-                       </div>
-                       <span className="text-xs font-black text-white">{selectedTicket.analysis?.entities?.pin_code || '---'}</span>
-                    </div>
-                  </div>
-                </section>
-
-                <section>
-                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-5">Sentiment Analysis</p>
-                  <div className="flex items-center justify-between bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-xl mb-4">
-                    <div className="flex items-center gap-4">
-                      {getSentimentIcon(selectedTicket.analysis?.sentiment)}
-                      <span className="text-sm font-black text-white uppercase tracking-tighter">{selectedTicket.analysis?.sentiment || 'Analyzing...'}</span>
-                    </div>
-                  </div>
-                  <div className={`p-5 rounded-2xl border font-black text-[10px] text-center uppercase tracking-[0.3em] shadow-2xl transition-all hover:scale-[1.02] ${selectedTicket.analysis?.priority === 'Urgent' ? 'bg-red-600 border-red-500 text-white shadow-red-900/30' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
-                    Priority Vector: {selectedTicket.analysis?.priority || 'NORMAL'}
-                  </div>
-                </section>
-
-                <section className="bg-gradient-to-br from-red-600 to-red-800 rounded-[2.5rem] p-8 text-white shadow-[0_20px_40px_rgba(220,38,38,0.2)] relative overflow-hidden group">
-                  <div className="relative z-10">
-                    <p className="text-[10px] font-black text-red-100/70 uppercase tracking-[0.3em] mb-5 flex items-center gap-2">
-                      <Zap size={16} className="fill-yellow-400 text-yellow-400" /> Executive Intelligence
-                    </p>
-                    <p className="text-sm leading-relaxed font-black italic tracking-tight">
-                      "{selectedTicket.analysis?.summary || 'NLU engine streaming analysis results...'}"
-                    </p>
-                  </div>
-                  <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:rotate-12 transition-all duration-700 group-hover:scale-125">
-                    <ShieldCheck size={120} />
-                  </div>
-                </section>
-
-                <section>
-                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-5">Semantic Metadata</p>
-                  <div className="flex flex-wrap gap-2.5">
-                    {selectedTicket.analysis?.tags?.map((tag, i) => (
-                      <span key={i} className="flex items-center gap-2 bg-slate-900 border border-slate-800 text-slate-400 px-4 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg hover:border-red-600/50 transition-all cursor-default group">
-                        <TagIcon size={12} className="text-red-600 group-hover:scale-110 transition-transform" /> {tag}
-                      </span>
-                    )) || <span className="text-xs text-slate-700 font-bold uppercase italic tracking-widest">Scanning metadata...</span>}
-                  </div>
-                </section>
-                
-                {selectedTicket.feedback && (
-                  <section className="bg-yellow-400/5 rounded-[2.5rem] p-8 border border-yellow-400/20 shadow-2xl border-dashed">
-                    <p className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-                      <Star size={14} className="fill-yellow-500 text-yellow-500" /> Resolution Review
-                    </p>
-                    <div className="flex gap-1.5 mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={18} className={i < (selectedTicket.feedback?.rating || 0) ? 'text-yellow-400 fill-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'text-slate-800'} />
-                      ))}
-                    </div>
-                    <p className="text-sm text-yellow-100/70 font-bold leading-relaxed italic tracking-tight">"{selectedTicket.feedback.comment}"</p>
-                  </section>
-                )}
-
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex-grow flex flex-col items-center justify-center text-slate-800 p-20">
-             <div className="bg-slate-900/50 p-32 rounded-full mb-12 shadow-inner ring-1 ring-slate-800 animate-in zoom-in duration-700">
-                <ShieldCheck size={160} className="text-slate-900" />
-             </div>
-             <p className="text-4xl font-black text-slate-900 tracking-tighter uppercase mb-2">Registry Standby</p>
-             <p className="text-xs mt-3 text-slate-700 max-w-sm text-center font-black uppercase tracking-[0.2em]">PostGuard Intelligent Unit Ready for Data Processing</p>
+        {filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-30">
+            <History size={64} className="text-stone-300" />
+            <p className="text-xs font-black uppercase tracking-[0.4em]">No matching tickets found</p>
           </div>
         )}
       </div>
+
+      {/* Footer / Pagination */}
+      <div className="p-4 border-t border-stone-100 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/50 flex justify-between items-center px-8">
+         <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+           Showing {filtered.length} of {complaints.length} records
+         </p>
+         <div className="flex gap-2">
+           <button className="px-4 py-1.5 border border-stone-100 dark:border-stone-700 rounded text-[10px] font-bold text-stone-400 hover:bg-white transition-all">Prev</button>
+           <button className="px-4 py-1.5 bg-blue-600 text-white rounded text-[10px] font-bold shadow-md">1</button>
+           <button className="px-4 py-1.5 border border-stone-100 dark:border-stone-700 rounded text-[10px] font-bold text-stone-400 hover:bg-white transition-all">Next</button>
+         </div>
+      </div>
+    </div>
+  );
+
+  const renderReports = () => {
+    const solved = complaints.filter(c => c.status === ComplaintStatus.SOLVED).length;
+    const pending = complaints.filter(c => c.status === ComplaintStatus.PENDING).length;
+    const open = complaints.filter(c => c.status === ComplaintStatus.OPEN).length;
+    
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 overflow-y-auto custom-scrollbar flex-grow p-1">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-4">Total Received</p>
+            <p className="text-3xl font-black text-stone-900 dark:text-white">{complaints.length}</p>
+            <div className="flex items-center gap-2 mt-4 text-[10px] font-bold text-green-500">
+               <TrendingUp size={12} /> +12% from last week
+            </div>
+          </div>
+          <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-4">Resolved</p>
+            <p className="text-3xl font-black text-green-600">{solved}</p>
+            <div className="mt-4 h-1 w-full bg-stone-100 dark:bg-stone-800 rounded-full">
+               <div className="h-full bg-green-500 rounded-full" style={{ width: `${(solved/complaints.length)*100}%` }}></div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-4">Avg. Resolution</p>
+            <p className="text-3xl font-black text-blue-600">2.4 <span className="text-sm">days</span></p>
+            <p className="text-[10px] font-bold text-stone-400 mt-4 uppercase">Target: 3.0 days</p>
+          </div>
+          <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-4">Satisfaction Score</p>
+            <p className="text-3xl font-black text-amber-500">4.8 <span className="text-sm">/ 5</span></p>
+            <div className="flex gap-1 mt-4">
+              {[1,2,3,4,5].map(i => <div key={i} className={`w-3 h-1.5 rounded ${i === 5 ? 'bg-stone-100' : 'bg-amber-500'}`}></div>)}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+           <div className="bg-white dark:bg-stone-900 p-8 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
+             <div className="flex justify-between items-center mb-8">
+                <h3 className="text-sm font-black uppercase tracking-tighter">Volume by Category</h3>
+                <PieChart size={18} className="text-stone-300" />
+             </div>
+             <div className="space-y-6">
+                {[
+                  { label: 'Lost Parcel', val: 45, color: 'bg-red-500' },
+                  { label: 'Delivery Delay', val: 30, color: 'bg-amber-500' },
+                  { label: 'Damaged Item', val: 15, color: 'bg-blue-500' },
+                  { label: 'Other', val: 10, color: 'bg-stone-500' }
+                ].map((item, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex justify-between text-[10px] font-bold uppercase">
+                      <span>{item.label}</span>
+                      <span>{item.val}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-stone-50 dark:bg-stone-800 rounded-full">
+                       <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.val}%` }}></div>
+                    </div>
+                  </div>
+                ))}
+             </div>
+           </div>
+           
+           <div className="bg-white dark:bg-stone-900 p-8 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
+             <div className="flex justify-between items-center mb-8">
+                <h3 className="text-sm font-black uppercase tracking-tighter">Staff Performance</h3>
+                <BarChart size={18} className="text-stone-300" />
+             </div>
+             <div className="space-y-6">
+                {[
+                  { name: 'Arjun K.', cases: 142, rate: 98 },
+                  { name: 'Meera S.', cases: 98, rate: 85 },
+                  { name: 'Rahul V.', cases: 76, rate: 92 }
+                ].map((staff, i) => (
+                  <div key={i} className="flex items-center justify-between border-b border-stone-50 dark:border-stone-800 pb-4">
+                    <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-[10px] font-black">{staff.name.charAt(0)}</div>
+                       <span className="text-xs font-bold">{staff.name}</span>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[10px] font-black text-stone-900 dark:text-white uppercase">{staff.cases} Solved</p>
+                       <p className="text-[9px] font-bold text-green-500">{staff.rate}% Success</p>
+                    </div>
+                  </div>
+                ))}
+             </div>
+           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderActivity = () => {
+    const allUpdates = complaints.flatMap(c => c.updates.map(u => ({ ...u, ticketId: c.id })))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    return (
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col flex-grow animate-in fade-in duration-500">
+        <div className="p-8 border-b border-stone-100 dark:border-stone-800">
+           <h3 className="text-sm font-black uppercase tracking-tighter">System-wide Activity Log</h3>
+        </div>
+        <div className="flex-grow overflow-y-auto p-8 space-y-6 custom-scrollbar">
+          {allUpdates.map((u, i) => (
+            <div key={i} className="flex gap-6 group">
+              <div className="flex flex-col items-center shrink-0">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                  u.type === 'status_change' ? 'bg-amber-50 text-amber-500 border-amber-100' : 'bg-blue-50 text-blue-500 border-blue-100'
+                }`}>
+                  {u.type === 'status_change' ? <RotateCcw size={18} /> : <MessageCircle size={18} />}
+                </div>
+                {i !== allUpdates.length - 1 && <div className="w-px h-full bg-stone-100 dark:bg-stone-800 my-2"></div>}
+              </div>
+              <div className="pb-8 border-b border-stone-50 dark:border-stone-800 w-full group-last:border-0">
+                <div className="flex justify-between items-center mb-2">
+                   <p className="text-xs font-black text-stone-900 dark:text-white uppercase tracking-tighter">
+                     {u.author} <span className="text-stone-300 mx-2 font-normal">updated</span> <span className="text-indiapost-red">#{u.ticketId}</span>
+                   </p>
+                   <span className="text-[10px] font-bold text-stone-400">{new Date(u.timestamp).toLocaleString()}</span>
+                </div>
+                <p className="text-sm text-stone-500 dark:text-stone-400 font-medium leading-relaxed italic">"{u.message}"</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderCitizens = () => {
+    const uniqueUsers = Array.from(new Set(complaints.map(c => c.userId))).map(id => {
+      const c = complaints.find(comp => comp.userId === id);
+      const userComplaints = complaints.filter(comp => comp.userId === id);
+      return {
+        id,
+        name: c?.userName,
+        count: userComplaints.length,
+        lastDate: userComplaints[0].date
+      };
+    });
+
+    return (
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col flex-grow animate-in fade-in duration-500">
+        <div className="p-8 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center">
+           <h3 className="text-sm font-black uppercase tracking-tighter">Registered Citizens</h3>
+           <div className="flex gap-2">
+             <button className="px-4 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-lg text-xs font-bold text-stone-600">Export CSV</button>
+           </div>
+        </div>
+        <div className="overflow-y-auto custom-scrollbar">
+          <table className="w-full text-left">
+            <thead className="bg-stone-50 dark:bg-stone-800 sticky top-0">
+              <tr className="text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100 dark:border-stone-700">
+                <th className="px-8 py-4">Citizen Name</th>
+                <th className="px-8 py-4">Contact Ref</th>
+                <th className="px-8 py-4">Total Filings</th>
+                <th className="px-8 py-4">Recent Date</th>
+                <th className="px-8 py-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
+              {uniqueUsers.map(u => (
+                <tr key={u.id} className="hover:bg-stone-50/50 dark:hover:bg-stone-800/30 transition-colors">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-[10px]">{u.name?.charAt(0)}</div>
+                      <span className="text-sm font-bold">{u.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5 text-xs text-stone-400 font-bold">{u.id}</td>
+                  <td className="px-8 py-5">
+                    <span className="px-3 py-1 bg-stone-100 dark:bg-stone-800 rounded-full text-[10px] font-black">{u.count} Cases</span>
+                  </td>
+                  <td className="px-8 py-5 text-xs text-stone-400">{new Date(u.lastDate).toLocaleDateString()}</td>
+                  <td className="px-8 py-5">
+                    <button className="text-[10px] font-black text-blue-600 uppercase hover:underline">View History</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSettings = () => (
+    <div className="max-w-4xl space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm p-10">
+         <h3 className="text-sm font-black uppercase tracking-tighter mb-8 border-b border-stone-50 dark:border-stone-800 pb-4">Portal Configuration</h3>
+         <div className="space-y-8">
+            <div className="flex items-center justify-between p-6 bg-stone-50 dark:bg-stone-800/50 rounded-2xl">
+               <div>
+                  <p className="text-xs font-black uppercase mb-1">AI-Assisted Classification</p>
+                  <p className="text-[10px] font-bold text-stone-400">Automatically categorize incoming complaints using NLP models.</p>
+               </div>
+               <div className="w-12 h-6 bg-green-500 rounded-full relative shadow-inner"><div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div></div>
+            </div>
+            <div className="flex items-center justify-between p-6 bg-stone-50 dark:bg-stone-800/50 rounded-2xl">
+               <div>
+                  <p className="text-xs font-black uppercase mb-1">Real-time Translation</p>
+                  <p className="text-[10px] font-bold text-stone-400">Automatically translate regional languages to official English/Hindi.</p>
+               </div>
+               <div className="w-12 h-6 bg-green-500 rounded-full relative shadow-inner"><div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div></div>
+            </div>
+            <div className="flex items-center justify-between p-6 bg-stone-50 dark:bg-stone-800/50 rounded-2xl">
+               <div>
+                  <p className="text-xs font-black uppercase mb-1">Citizen SMS Alerts</p>
+                  <p className="text-[10px] font-bold text-stone-400">Send automatic updates to citizens when their ticket status changes.</p>
+               </div>
+               <div className="w-12 h-6 bg-stone-300 rounded-full relative shadow-inner"><div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></div></div>
+            </div>
+         </div>
+      </div>
+
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm p-10">
+         <h3 className="text-sm font-black uppercase tracking-tighter mb-8 text-red-600">Administrative Actions</h3>
+         <button className="px-6 py-3 border border-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-50 transition-colors">Clear Local History Logs</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-[calc(100vh-140px)] bg-[#f8fafc] dark:bg-stone-950 -m-8 overflow-hidden font-sans">
+      
+      {/* --- LEFT SIDEBAR (Category Based Navigation) --- */}
+      <aside className="w-64 bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 flex flex-col shrink-0">
+        <div className="p-6 border-b border-stone-100 dark:border-stone-800">
+           <h2 className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Management Console</h2>
+        </div>
+        
+        <nav className="flex-grow py-4 overflow-y-auto custom-scrollbar">
+          <div className="px-4 mb-8">
+            <h3 className="px-2 text-[9px] font-black text-indiapost-red uppercase tracking-widest mb-4">Inbox Section</h3>
+            <ul className="space-y-1">
+              <li 
+                onClick={() => setActiveView('queue')}
+                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'queue' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
+              >
+                <Inbox size={16} /> Ticket Queue
+              </li>
+              <li 
+                onClick={() => setActiveView('activity')}
+                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'activity' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
+              >
+                <Activity size={16} /> Real-time Activity
+              </li>
+              <li 
+                onClick={() => setActiveView('flagged')}
+                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'flagged' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
+              >
+                <Flag size={16} /> Flagged Items
+              </li>
+            </ul>
+          </div>
+
+          <div className="px-4 mb-8">
+            <h3 className="px-2 text-[9px] font-black text-stone-400 uppercase tracking-widest mb-4">Users Section</h3>
+            <ul className="space-y-1">
+              <li 
+                onClick={() => setActiveView('citizens')}
+                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'citizens' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
+              >
+                <Users size={16} /> Citizen Profiles
+              </li>
+              <li 
+                onClick={() => setActiveView('staff')}
+                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'staff' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
+              >
+                <Briefcase size={16} /> Staff Directory
+              </li>
+            </ul>
+          </div>
+
+          <div className="px-4">
+            <h3 className="px-2 text-[9px] font-black text-stone-400 uppercase tracking-widest mb-4">Configuration</h3>
+            <ul className="space-y-1">
+              <li 
+                onClick={() => setActiveView('reports')}
+                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'reports' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
+              >
+                <BarChart size={16} /> Reports & Analytics
+              </li>
+              <li 
+                onClick={() => setActiveView('settings')}
+                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'settings' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
+              >
+                <Settings size={16} /> Portal Settings
+              </li>
+            </ul>
+          </div>
+        </nav>
+
+        <div className="p-6 border-t border-stone-100 dark:border-stone-800">
+           <div className="flex items-center gap-3 bg-stone-50 dark:bg-stone-800 p-3 rounded-xl">
+             <div className="w-8 h-8 rounded-lg bg-indiapost-red flex items-center justify-center text-white font-black text-xs">A</div>
+             <div className="overflow-hidden">
+               <p className="text-[10px] font-black truncate">{user.name}</p>
+               <p className="text-[8px] font-bold text-stone-400 uppercase truncate">Branch Admin</p>
+             </div>
+           </div>
+        </div>
+      </aside>
+
+      {/* --- MAIN WORKSPACE --- */}
+      <main className="flex-grow flex flex-col min-w-0">
+        
+        {/* Top Action Bar */}
+        <header className="bg-white dark:bg-stone-900 h-16 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between px-8 shrink-0">
+           <div className="flex items-center gap-6">
+             <div className="flex items-center gap-2 text-stone-400">
+               <span className="text-xs font-bold">Tickets</span>
+               <ChevronRight size={14} />
+               <span className="text-xs font-black text-stone-900 dark:text-white uppercase tracking-tighter">
+                 {activeView === 'queue' ? 'Active Workspace' : activeView.toUpperCase()}
+               </span>
+             </div>
+           </div>
+           
+           <div className="flex items-center gap-4">
+             <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors">
+               <Plus size={16} /> New Entry
+             </button>
+             <button className="p-2 text-stone-400 hover:bg-stone-100 rounded-lg transition-colors">
+                <Search size={18} />
+             </button>
+             <button className="p-2 text-stone-400 hover:bg-stone-100 rounded-lg transition-colors">
+                <AlertCircle size={18} />
+             </button>
+           </div>
+        </header>
+
+        {/* Content Section */}
+        <div className="flex-grow p-8 overflow-hidden flex flex-col">
+          {activeView === 'queue' && renderQueue()}
+          {activeView === 'reports' && renderReports()}
+          {activeView === 'activity' && renderActivity()}
+          {activeView === 'citizens' && renderCitizens()}
+          {activeView === 'settings' && renderSettings()}
+          {(activeView === 'flagged' || activeView === 'staff') && (
+            <div className="bg-white dark:bg-stone-900 p-20 rounded-2xl border border-dashed border-stone-200 dark:border-stone-800 flex flex-col items-center justify-center gap-6 opacity-40">
+               <ShieldCheck size={48} className="text-stone-300" />
+               <p className="text-sm font-black uppercase tracking-widest text-center">Section under maintenance<br/><span className="text-xs font-bold mt-2 block">Enterprise access only</span></p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* --- SLIDE-OVER DETAIL PANE --- */}
+      {selectedTicket && activeView === 'queue' && (
+        <aside className="fixed inset-y-0 right-0 w-[500px] bg-white dark:bg-stone-900 border-l border-stone-200 dark:border-stone-800 shadow-[-20px_0_40px_rgba(0,0,0,0.1)] z-50 flex flex-col animate-in slide-in-from-right duration-300">
+           <header className="p-8 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center bg-stone-50 dark:bg-stone-800/50">
+             <div>
+               <h2 className="text-xl font-black tracking-tighter text-stone-900 dark:text-white uppercase leading-none">Record Details</h2>
+               <p className="text-[10px] font-black text-indiapost-red uppercase tracking-widest mt-2">Case ID: {selectedTicket.id}</p>
+             </div>
+             <button onClick={() => setSelectedId(null)} className="p-3 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-full transition-colors text-stone-400">
+               <X size={20} />
+             </button>
+           </header>
+
+           <div className="flex-grow overflow-y-auto p-8 custom-scrollbar space-y-10">
+              <section className="space-y-4">
+                 <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-widest flex items-center gap-2">
+                   <FileText size={14} /> Description
+                 </h4>
+                 <div className="p-6 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-700 shadow-inner">
+                    <p className="text-sm font-bold text-stone-800 dark:text-stone-200 leading-relaxed italic">"{selectedTicket.description}"</p>
+                    {selectedTicket.imageUrl && (
+                      <div className="mt-6 rounded-xl overflow-hidden shadow-lg">
+                        <img src={selectedTicket.imageUrl} alt="evidence" className="w-full h-auto" />
+                      </div>
+                    )}
+                 </div>
+              </section>
+
+              <section className="space-y-4">
+                 <div className="flex justify-between items-center">
+                   <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-widest flex items-center gap-2">
+                     <MessageCircle size={14} /> Conversation History
+                   </h4>
+                   <button className="text-[9px] font-black text-blue-600 uppercase">View All logs</button>
+                 </div>
+                 <div className="space-y-4">
+                    {selectedTicket.updates.map((u, i) => (
+                      <div key={i} className={`p-5 rounded-2xl border ${u.isInternal ? 'bg-amber-50 border-amber-100 dark:bg-amber-900/10 dark:border-amber-900/20' : 'bg-white dark:bg-stone-800 border-stone-100 dark:border-stone-700 shadow-sm'}`}>
+                         <div className="flex justify-between text-[8px] font-black uppercase text-stone-400 mb-2">
+                           <span>{u.author}</span>
+                           <span>{new Date(u.timestamp).toLocaleString()}</span>
+                         </div>
+                         <p className="text-xs font-bold">{u.message}</p>
+                      </div>
+                    ))}
+                 </div>
+              </section>
+
+              <section className="space-y-4">
+                 <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-widest flex items-center gap-2">
+                   <Zap size={14} className="text-indiapost-red fill-indiapost-red" /> Staff Assistant Suggestion
+                 </h4>
+                 <div className="p-5 bg-stone-900 rounded-2xl text-stone-100 shadow-xl border border-white/10">
+                    <p className="text-xs font-medium leading-relaxed mb-4">{selectedTicket.analysis?.suggestedResponse}</p>
+                    <button 
+                      onClick={() => setReply(selectedTicket.analysis?.suggestedResponse || '')}
+                      className="text-[9px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all"
+                    >
+                      Use Suggestion
+                    </button>
+                 </div>
+              </section>
+           </div>
+
+           <footer className="p-8 border-t border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+              <div className="flex gap-2 mb-4">
+                 <button onClick={() => setIsInternal(false)} className={`px-5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!isInternal ? 'bg-stone-900 text-white' : 'text-stone-400 hover:bg-stone-50'}`}>Public Reply</button>
+                 <button onClick={() => setIsInternal(true)} className={`px-5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${isInternal ? 'bg-amber-500 text-white' : 'text-stone-400 hover:bg-stone-50'}`}><Lock size={12} /> Internal Note</button>
+              </div>
+              <div className="relative">
+                <textarea 
+                  placeholder={isInternal ? "Official supervisor notes..." : "Respond to the citizen professionally..."}
+                  className={`w-full p-6 pr-24 rounded-2xl border outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-sm min-h-[120px] shadow-inner ${isInternal ? 'bg-amber-50/20 border-amber-100' : 'bg-stone-50 dark:bg-stone-800 border-stone-100 dark:border-stone-700'}`}
+                  value={reply}
+                  onChange={(e) => setReply(e.target.value)}
+                />
+                <button 
+                  onClick={handleReply}
+                  className="absolute right-4 bottom-4 p-4 bg-blue-600 text-white rounded-xl shadow-xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all"
+                >
+                  <Send size={24} />
+                </button>
+              </div>
+              
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => handleStatusChange(ComplaintStatus.SOLVED)} className="flex-1 py-3 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-900/10">Mark Resolved</button>
+                <button className="p-3 border border-stone-200 dark:border-stone-700 text-stone-400 rounded-xl hover:bg-stone-50 transition-colors"><MoreVertical size={20} /></button>
+              </div>
+           </footer>
+        </aside>
+      )}
+      
+      {/* Detail Overlay Backdrop */}
+      {selectedId && <div onClick={() => setSelectedId(null)} className="fixed inset-0 bg-stone-900/20 backdrop-blur-sm z-40 animate-in fade-in duration-300" />}
+
     </div>
   );
 };
