@@ -1,35 +1,24 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Smartphone, Lock, User as UserIcon, Mail, Mail as MailIcon, ShieldCheck } from 'lucide-react';
+import { Smartphone, Lock, User as UserIcon, Mail, ShieldCheck, ArrowRight, UserCheck, Briefcase } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
 }
 
-const PostGuardLogoLarge = () => (
-  <div className="flex flex-col items-center gap-4">
-    <div className="relative animate-float">
-      <div className="bg-red-600 p-6 rounded-[2rem] shadow-2xl shadow-red-900/30 transform rotate-6 border-4 border-white/20">
-        <MailIcon className="text-white" size={64} />
-      </div>
-      <div className="absolute -bottom-2 -right-2 bg-amber-500 rounded-2xl p-3 border-4 border-white dark:border-slate-900 shadow-xl">
-        <ShieldCheck className="text-white" size={24} />
-      </div>
-    </div>
-    <div className="text-center">
-      <h1 className="text-4xl font-black tracking-tighter text-stone-900 dark:text-white">Post<span className="text-red-600">Guard</span></h1>
-      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 dark:text-slate-500 mt-2">Department of Posts Core</p>
-    </div>
-  </div>
-);
-
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [step, setStep] = useState<'phone' | 'otp' | 'profile'>('phone');
+  const [role, setRole] = useState<'user' | 'staff' | null>(null);
+  const [step, setStep] = useState<'phone' | 'otp' | 'profile' | 'staff_form'>('phone');
+  
+  // User states
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  
+  // Staff states
+  const [staffId, setStaffId] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSendOtp = (e: React.FormEvent) => {
@@ -48,116 +37,169 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const handleCompleteProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
+    onLogin({
+      id: `CIT-${Math.floor(Math.random() * 90000)}`,
       phone,
       name,
-      email
-    };
-    onLogin(newUser);
+      email,
+      role: 'user'
+    });
   };
 
+  const handleStaffLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Demo check
+    if (staffId && password) {
+      onLogin({
+        id: staffId,
+        phone: 'N/A',
+        name: staffId.toUpperCase(),
+        email: `${staffId}@indiapost.gov.in`,
+        role: 'staff'
+      });
+    }
+  };
+
+  if (!role) {
+    return (
+      <div className="flex-grow flex items-center justify-center p-6 bg-stone-50">
+        <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-stone-100 p-12 text-center animate-in zoom-in duration-500">
+          <img src="https://www.indiapost.gov.in/PublishingImages/India_Post_Logo.png" alt="India Post" className="h-24 mx-auto mb-10" />
+          <h2 className="text-3xl font-black text-stone-900 tracking-tighter mb-4 uppercase">Identity Selection</h2>
+          <p className="text-stone-500 font-bold text-sm uppercase tracking-widest mb-12">Choose your access protocol</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <button 
+              onClick={() => { setRole('user'); setStep('phone'); }}
+              className="group p-10 bg-white border-2 border-stone-100 rounded-3xl hover:border-indiapost-red hover:bg-stone-50 transition-all flex flex-col items-center gap-6"
+            >
+              <div className="bg-stone-50 p-6 rounded-2xl text-stone-400 group-hover:text-indiapost-red group-hover:bg-red-50 transition-all">
+                <UserCheck size={48} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-stone-900 uppercase tracking-tighter">I am a Citizen</h3>
+                <p className="text-xs text-stone-400 font-bold uppercase mt-2">Personal Grievance Access</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => { setRole('staff'); setStep('staff_form'); }}
+              className="group p-10 bg-white border-2 border-stone-100 rounded-3xl hover:border-indiapost-red hover:bg-stone-50 transition-all flex flex-col items-center gap-6"
+            >
+              <div className="bg-stone-50 p-6 rounded-2xl text-stone-400 group-hover:text-indiapost-red group-hover:bg-red-50 transition-all">
+                <Briefcase size={48} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-stone-900 uppercase tracking-tighter">I am Staff</h3>
+                <p className="text-xs text-stone-400 font-bold uppercase mt-2">Departmental Triage Login</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-grow flex items-center justify-center p-6 bg-beige-50 dark:bg-slate-950">
-      <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[3rem] shadow-3xl overflow-hidden border border-stone-200 dark:border-slate-800 animate-in zoom-in duration-700">
-        <div className="bg-stone-50/50 dark:bg-slate-850/50 py-16 text-center border-b border-stone-100 dark:border-slate-800">
-          <PostGuardLogoLarge />
+    <div className="flex-grow flex items-center justify-center p-6 bg-stone-50">
+      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden border border-stone-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="bg-indiapost-red py-12 text-center text-white relative overflow-hidden">
+          <button onClick={() => setRole(null)} className="absolute left-6 top-6 text-white/50 hover:text-white transition-colors flex items-center gap-1 font-black text-[10px] uppercase tracking-widest">Back</button>
+          <img src="https://www.indiapost.gov.in/PublishingImages/India_Post_Logo.png" alt="Logo" className="h-16 mx-auto mb-4 invert brightness-200" />
+          <h2 className="text-2xl font-black uppercase tracking-tighter">{role === 'staff' ? 'Staff Authentication' : 'Citizen Access'}</h2>
         </div>
 
         <div className="p-12">
-          {step === 'phone' && (
-            <form onSubmit={handleSendOtp} className="space-y-8">
-              <div className="space-y-2 text-center">
-                <h2 className="text-2xl font-black text-stone-900 dark:text-white tracking-tight">Citizen Access</h2>
-                <p className="text-stone-500 dark:text-slate-400 text-sm font-medium">Verify your mobile to enter the redressal portal.</p>
-              </div>
+          {role === 'staff' ? (
+            <form onSubmit={handleStaffLogin} className="space-y-6">
               <div className="relative group">
-                <Smartphone className="absolute left-6 top-5 text-stone-300 dark:text-slate-600 group-focus-within:text-red-600 transition-colors" size={24} />
-                <input
-                  type="tel"
-                  placeholder="Mobile Number"
-                  required
-                  className="w-full pl-16 pr-6 py-5 bg-stone-50 dark:bg-slate-950 border border-stone-200 dark:border-slate-800 rounded-2xl text-stone-900 dark:text-white focus:ring-4 focus:ring-red-600/10 focus:border-red-600 outline-none transition-all text-lg font-bold placeholder:text-stone-200 dark:placeholder:text-slate-800"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-              <button type="submit" className="w-full bg-red-600 text-white font-black py-5 rounded-2xl hover:bg-red-700 transition shadow-2xl shadow-red-900/30 active:scale-95 text-lg tracking-tight">
-                Request Security Code
-              </button>
-            </form>
-          )}
-
-          {step === 'otp' && (
-            <form onSubmit={handleVerifyOtp} className="space-y-8">
-              <div className="space-y-2 text-center">
-                <h2 className="text-2xl font-black text-stone-900 dark:text-white tracking-tight">One-Time Password</h2>
-                <p className="text-stone-500 dark:text-slate-400 text-sm font-medium">Authentication required for account security.</p>
-              </div>
-              <div className="relative group">
-                <Lock className="absolute left-6 top-5 text-stone-300 dark:text-slate-600 group-focus-within:text-red-600 transition-colors" size={24} />
+                <UserIcon className="absolute left-5 top-4 text-stone-300 group-focus-within:text-indiapost-red transition-colors" size={20} />
                 <input
                   type="text"
-                  placeholder="6-digit code (123456)"
+                  placeholder="Employee ID"
                   required
-                  maxLength={6}
-                  className="w-full pl-16 pr-6 py-5 bg-stone-50 dark:bg-slate-950 border border-stone-200 dark:border-slate-800 rounded-2xl text-stone-900 dark:text-white focus:ring-4 focus:ring-red-600/10 focus:border-red-600 outline-none tracking-[0.5em] text-2xl font-black text-center"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
+                  className="w-full pl-14 pr-6 py-4 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-indiapost-red/20 focus:border-indiapost-red font-bold"
+                  value={staffId}
+                  onChange={(e) => setStaffId(e.target.value)}
                 />
               </div>
-              <button type="submit" className="w-full bg-red-600 text-white font-black py-5 rounded-2xl hover:bg-red-700 transition active:scale-95 text-lg shadow-2xl">
-                Verify Securely
-              </button>
-              <button onClick={() => setStep('phone')} className="w-full text-stone-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest py-2 hover:text-red-600">
-                Change Identification
-              </button>
-            </form>
-          )}
-
-          {step === 'profile' && (
-            <form onSubmit={handleCompleteProfile} className="space-y-6">
-              <div className="space-y-2 text-center">
-                <h2 className="text-2xl font-black text-stone-900 dark:text-white tracking-tight">Establish Identity</h2>
-                <p className="text-stone-500 dark:text-slate-400 text-sm font-medium">Finalize your official resident profile.</p>
-              </div>
-              <div className="relative">
-                <UserIcon className="absolute left-5 top-4 text-stone-400 dark:text-slate-600" size={20} />
-                <input
-                  type="text"
-                  placeholder="Legal Full Name"
-                  required
-                  className="w-full pl-14 pr-6 py-4 bg-stone-50 dark:bg-slate-950 border border-stone-200 dark:border-slate-800 rounded-2xl text-stone-900 dark:text-white focus:ring-4 focus:ring-red-600/10 focus:border-red-600 outline-none font-bold"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-              <div className="relative">
-                <Mail className="absolute left-5 top-4 text-stone-400 dark:text-slate-600" size={20} />
-                <input
-                  type="email"
-                  placeholder="Email for Digital Receipts"
-                  required
-                  className="w-full pl-14 pr-6 py-4 bg-stone-50 dark:bg-slate-950 border border-stone-200 dark:border-slate-800 rounded-2xl text-stone-900 dark:text-white focus:ring-4 focus:ring-red-600/10 focus:border-red-600 outline-none font-bold"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-5 top-4 text-stone-400 dark:text-slate-600" size={20} />
+              <div className="relative group">
+                <Lock className="absolute left-5 top-4 text-stone-300 group-focus-within:text-indiapost-red transition-colors" size={20} />
                 <input
                   type="password"
-                  placeholder="Account Password"
+                  placeholder="Official Password"
                   required
-                  className="w-full pl-14 pr-6 py-4 bg-stone-50 dark:bg-slate-950 border border-stone-200 dark:border-slate-800 rounded-2xl text-stone-900 dark:text-white focus:ring-4 focus:ring-red-600/10 focus:border-red-600 outline-none font-bold"
+                  className="w-full pl-14 pr-6 py-4 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-indiapost-red/20 focus:border-indiapost-red font-bold"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              <button type="submit" className="w-full bg-red-600 text-white font-black py-5 rounded-2xl hover:bg-red-700 transition shadow-3xl shadow-red-900/30 active:scale-95 text-lg">
-                Activate PostGuard
+              <button type="submit" className="w-full bg-indiapost-red text-white font-black py-4 rounded-xl hover:bg-red-700 transition active:scale-95 shadow-xl uppercase tracking-widest text-sm">
+                Unlock Dashboard
               </button>
             </form>
+          ) : (
+            <>
+              {step === 'phone' && (
+                <form onSubmit={handleSendOtp} className="space-y-8">
+                  <div className="relative group">
+                    <Smartphone className="absolute left-6 top-5 text-stone-300 group-focus-within:text-indiapost-red" size={24} />
+                    <input
+                      type="tel"
+                      placeholder="Mobile Number"
+                      required
+                      className="w-full pl-16 pr-6 py-5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:ring-2 focus:ring-indiapost-red/20 focus:border-indiapost-red outline-none transition-all text-lg font-bold"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="w-full bg-indiapost-red text-white font-black py-5 rounded-xl hover:bg-red-700 transition shadow-xl active:scale-95 text-lg uppercase tracking-tighter">
+                    Request OTP
+                  </button>
+                </form>
+              )}
+
+              {step === 'otp' && (
+                <form onSubmit={handleVerifyOtp} className="space-y-8">
+                  <input
+                    type="text"
+                    placeholder="6-digit code (123456)"
+                    required
+                    maxLength={6}
+                    className="w-full py-5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:ring-2 focus:ring-indiapost-red/20 focus:border-indiapost-red outline-none tracking-[0.5em] text-2xl font-black text-center"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                  />
+                  <button type="submit" className="w-full bg-indiapost-red text-white font-black py-5 rounded-xl hover:bg-red-700 transition active:scale-95 text-lg shadow-xl uppercase tracking-tighter">
+                    Verify Securely
+                  </button>
+                </form>
+              )}
+
+              {step === 'profile' && (
+                <form onSubmit={handleCompleteProfile} className="space-y-6">
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    required
+                    className="w-full px-6 py-4 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-indiapost-red/20 focus:border-indiapost-red font-bold"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email Address"
+                    required
+                    className="w-full px-6 py-4 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-indiapost-red/20 focus:border-indiapost-red font-bold"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <button type="submit" className="w-full bg-indiapost-red text-white font-black py-5 rounded-xl hover:bg-red-700 transition shadow-xl active:scale-95 uppercase tracking-tighter text-lg">
+                    Finish Setup
+                  </button>
+                </form>
+              )}
+            </>
           )}
         </div>
       </div>

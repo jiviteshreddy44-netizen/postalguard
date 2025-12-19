@@ -60,6 +60,7 @@ export interface User {
   phone: string;
   name: string;
   email: string;
+  role: 'user' | 'staff'; // Added role
 }
 
 export interface NewsUpdate {
