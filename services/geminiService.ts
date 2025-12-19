@@ -140,7 +140,7 @@ export const polishDraft = async (draft: string) => {
       contents: `Polish this draft for an India Post official: "${draft}"`,
       config: { systemInstruction: "Formal, authoritative, and empathetic India Post tone." }
     });
-    return response.text;
+    return response.text || draft;
   } catch (e) {
     return draft;
   }
@@ -163,9 +163,13 @@ export const getQuickSupport = async (query: string, userHistory?: string): Prom
   });
 
   const rawChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  const links: GroundingLink[] = rawChunks
-    .map((chunk: any) => chunk.web ? { title: chunk.web.title, uri: chunk.web.uri } : null)
-    .filter((link): link is GroundingLink => link !== null);
+  const links: GroundingLink[] = [];
+  
+  for (const chunk of rawChunks) {
+    if (chunk.web && chunk.web.title && chunk.web.uri) {
+      links.push({ title: String(chunk.web.title), uri: String(chunk.web.uri) });
+    }
+  }
 
   return {
     text: response.text || "Connection issue.",
@@ -186,9 +190,13 @@ export const findNearbyBranches = async (lat: number, lng: number): Promise<{ te
     });
     
     const rawChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    const mapsLinks: string[] = rawChunks
-      .map((c: any) => c.maps?.uri)
-      .filter((uri): uri is string => typeof uri === 'string');
+    const mapsLinks: string[] = [];
+    
+    for (const chunk of rawChunks) {
+      if (chunk.maps && chunk.maps.uri) {
+        mapsLinks.push(String(chunk.maps.uri));
+      }
+    }
 
     return {
       text: response.text || "No branches found.",

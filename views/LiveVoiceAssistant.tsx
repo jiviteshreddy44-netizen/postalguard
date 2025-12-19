@@ -1,7 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
-// Fixed: Added Loader2 to the list of imports from lucide-react
 import { Mic, MicOff, X, PhoneCall, Volume2, Loader2 } from 'lucide-react';
 
 const encode = (bytes: Uint8Array) => {
@@ -66,15 +65,15 @@ const LiveVoiceAssistant: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         onopen: () => {
           setIsActive(true);
           setIsConnecting(false);
-          const source = audioContextRef.current!.createMediaStreamSource(stream);
-          const scriptProcessor = audioContextRef.current!.createScriptProcessor(4096, 1, 1);
+          if (!audioContextRef.current) return;
+          const source = audioContextRef.current.createMediaStreamSource(stream);
+          const scriptProcessor = audioContextRef.current.createScriptProcessor(4096, 1, 1);
           scriptProcessor.onaudioprocess = (e) => {
             const inputData = e.inputBuffer.getChannelData(0);
             const int16 = new Int16Array(inputData.length);
             for (let i = 0; i < inputData.length; i++) {
               int16[i] = inputData[i] * 32768;
             }
-            // Fixed: Use sessionPromise.then to prevent stale closures and ensure session is ready
             sessionPromise.then(session => {
               session.sendRealtimeInput({
                 media: {
@@ -85,32 +84,41 @@ const LiveVoiceAssistant: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             });
           };
           source.connect(scriptProcessor);
-          scriptProcessor.connect(audioContextRef.current!.destination);
+          scriptProcessor.connect(audioContextRef.current.destination);
         },
         onmessage: async (message) => {
-          const parts = message.serverContent?.modelTurn?.parts;
-          const audioData = parts && parts.length > 0 ? parts[0].inlineData?.data : undefined;
+          if (!message?.serverContent) return;
           
-          if (audioData && outputAudioContextRef.current) {
-            const ctx = outputAudioContextRef.current;
-            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
-            const buffer = await decodeAudioData(decode(audioData), ctx, 24000, 1);
-            const source = ctx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(ctx.destination);
-            source.start(nextStartTimeRef.current);
-            nextStartTimeRef.current += buffer.duration;
-            sourcesRef.current.add(source);
-            source.onended = () => sourcesRef.current.delete(source);
+          const modelTurn = message.serverContent.modelTurn;
+          if (modelTurn?.parts && modelTurn.parts.length > 0) {
+            const audioData = modelTurn.parts[0].inlineData?.data;
+            if (audioData && outputAudioContextRef.current) {
+              const ctx = outputAudioContextRef.current;
+              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+              const buffer = await decodeAudioData(decode(audioData), ctx, 24000, 1);
+              const source = ctx.createBufferSource();
+              source.buffer = buffer;
+              source.connect(ctx.destination);
+              source.start(nextStartTimeRef.current);
+              nextStartTimeRef.current += buffer.duration;
+              sourcesRef.current.add(source);
+              source.onended = () => sourcesRef.current.delete(source);
+            }
           }
-          if (message.serverContent?.interrupted) {
-            sourcesRef.current.forEach(s => s.stop());
+
+          if (message.serverContent.interrupted) {
+            sourcesRef.current.forEach(s => {
+              try { s.stop(); } catch(e) {}
+            });
             sourcesRef.current.clear();
             nextStartTimeRef.current = 0;
           }
         },
         onclose: () => setIsActive(false),
-        onerror: (e) => console.error("Live Audio Error:", e)
+        onerror: (e) => {
+          console.error("Live Audio Error:", e);
+          setIsConnecting(false);
+        }
       },
       config: {
         responseModalities: [Modality.AUDIO],
@@ -124,7 +132,9 @@ const LiveVoiceAssistant: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const stopSession = () => {
     if (sessionRef.current) {
-      sessionRef.current.then((s: any) => s.close());
+      sessionRef.current.then((s: any) => {
+        try { s.close(); } catch(e) {}
+      });
     }
     audioContextRef.current?.close();
     outputAudioContextRef.current?.close();
