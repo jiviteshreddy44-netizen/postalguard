@@ -5,15 +5,12 @@ import {
   ShieldCheck, 
   User as UserIcon, 
   LogOut,
-  Sun,
-  Moon,
   Mail,
   Bell,
   Globe,
   Search,
   ChevronDown,
   Accessibility,
-  LogIn,
   Menu
 } from 'lucide-react';
 
@@ -34,7 +31,7 @@ const OfficialHeader = ({ user, onLogout }: { user: User | null, onLogout: () =>
         <div className="max-w-7xl mx-auto flex justify-between items-center text-[10px] md:text-[11px] font-bold text-stone-600">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <img src="https://www.india.gov.in/sites/upload_files/npi/files/logo_0.png" alt="GOI" className="h-4 object-contain" />
+              <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="GOI" className="h-4 object-contain" />
               <span>भारत सरकार | GOVERNMENT OF INDIA</span>
             </div>
           </div>
@@ -57,7 +54,7 @@ const OfficialHeader = ({ user, onLogout }: { user: User | null, onLogout: () =>
         <div className="flex items-center gap-6 flex-shrink-0">
           <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="GOI Emblem" className="h-14" />
           <div className="h-16 w-px bg-stone-200"></div>
-          <img src="https://www.indiapost.gov.in/PublishingImages/India_Post_Logo.png" alt="India Post" className="h-14" />
+          <img src="https://upload.wikimedia.org/wikipedia/commons/c/c4/India_Post_Logo.svg" alt="India Post" className="h-14" />
           <div className="flex flex-col">
             <h1 className="text-lg font-extrabold text-[#741115] leading-none uppercase tracking-tight">Department of Posts</h1>
             <h2 className="text-2xl font-black text-indiapost-slate tracking-tight">Government of India</h2>
@@ -79,8 +76,8 @@ const OfficialHeader = ({ user, onLogout }: { user: User | null, onLogout: () =>
         </div>
 
         <div className="flex items-center gap-6 flex-shrink-0">
-          <img src="https://www.indiapost.gov.in/PublishingImages/swachh-bharat-logo.png" alt="Swachh Bharat" className="h-12 hidden lg:block" />
-          <img src="https://www.indiapost.gov.in/PublishingImages/digital-india-logo.png" alt="Digital India" className="h-12 hidden lg:block" />
+          <img src="https://upload.wikimedia.org/wikipedia/commons/c/c4/India_Post_Logo.svg" alt="Swachh Bharat" className="h-12 hidden lg:block grayscale opacity-60" />
+          <img src="https://upload.wikimedia.org/wikipedia/en/thumb/9/95/Digital_India_logo.svg/1200px-Digital_India_logo.svg.png" alt="Digital India" className="h-12 hidden lg:block" />
           
           {user && (
             <div className="flex items-center gap-4 bg-stone-50 px-4 py-2 rounded-lg border border-stone-100">
@@ -177,7 +174,7 @@ const App: React.FC = () => {
         <footer className="bg-white border-t border-stone-200 mt-20">
           <div className="max-w-7xl mx-auto py-12 px-4 grid grid-cols-1 md:grid-cols-4 gap-12">
             <div>
-              <img src="https://www.indiapost.gov.in/PublishingImages/India_Post_Logo.png" alt="India Post" className="h-12 mb-6 grayscale opacity-40" />
+              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c4/India_Post_Logo.svg" alt="India Post" className="h-12 mb-6 grayscale opacity-40" />
               <p className="text-[11px] text-stone-500 leading-relaxed font-medium">The Department of Posts (DoP) is a government-operated postal system in India. It is generally called "the Post Office" within India.</p>
             </div>
             <div>

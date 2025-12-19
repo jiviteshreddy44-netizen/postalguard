@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Smartphone, Lock, User as UserIcon, Mail, ShieldCheck, ArrowRight, UserCheck, Briefcase } from 'lucide-react';
+import { Smartphone, Lock, User as UserIcon, ShieldCheck, UserCheck, Briefcase } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -48,7 +48,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const handleStaffLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Demo check
     if (staffId && password) {
       onLogin({
         id: staffId,
@@ -64,7 +63,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     return (
       <div className="flex-grow flex items-center justify-center p-6 bg-stone-50">
         <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-stone-100 p-12 text-center animate-in zoom-in duration-500">
-          <img src="https://www.indiapost.gov.in/PublishingImages/India_Post_Logo.png" alt="India Post" className="h-24 mx-auto mb-10" />
+          <img src="https://upload.wikimedia.org/wikipedia/commons/c/c4/India_Post_Logo.svg" alt="India Post" className="h-24 mx-auto mb-10" />
           <h2 className="text-3xl font-black text-stone-900 tracking-tighter mb-4 uppercase">Identity Selection</h2>
           <p className="text-stone-500 font-bold text-sm uppercase tracking-widest mb-12">Choose your access protocol</p>
           
@@ -105,7 +104,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden border border-stone-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="bg-indiapost-red py-12 text-center text-white relative overflow-hidden">
           <button onClick={() => setRole(null)} className="absolute left-6 top-6 text-white/50 hover:text-white transition-colors flex items-center gap-1 font-black text-[10px] uppercase tracking-widest">Back</button>
-          <img src="https://www.indiapost.gov.in/PublishingImages/India_Post_Logo.png" alt="Logo" className="h-16 mx-auto mb-4 invert brightness-200" />
+          <img src="https://upload.wikimedia.org/wikipedia/commons/c/c4/India_Post_Logo.svg" alt="Logo" className="h-16 mx-auto mb-4 brightness-0 invert" />
           <h2 className="text-2xl font-black uppercase tracking-tighter">{role === 'staff' ? 'Staff Authentication' : 'Citizen Access'}</h2>
         </div>
 

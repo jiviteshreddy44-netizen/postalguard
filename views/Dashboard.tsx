@@ -1,21 +1,20 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { User, Complaint, ComplaintStatus } from '../types';
+import { User, Complaint } from '../types';
 import { 
   PlusCircle, 
   Search, 
-  ClipboardList, 
-  ChevronRight,
-  MapPin,
   ArrowUpRight,
   ShieldCheck,
   Package,
   ChevronLeft,
+  ChevronRight,
   Navigation,
-  // Fix: Added missing Mail and UserIcon imports
   Mail,
-  User as UserIcon
+  User as UserIcon,
+  MapPin,
+  ClipboardList
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -29,22 +28,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, complaints }) => {
       {/* Hero Section / Banner Mimicry */}
       <section className="relative w-full h-[300px] md:h-[500px] overflow-hidden bg-[#e6ded5]">
         <img 
-          src="https://www.indiapost.gov.in/PublishingImages/Dak_Samvaad_Banner_Eng.jpg" 
-          alt="Dak Samvaad" 
+          src="https://images.unsplash.com/photo-1587560699334-cc4ff634909a?q=80&w=2070&auto=format&fit=crop" 
+          alt="Banner" 
           className="w-full h-full object-cover mix-blend-multiply opacity-90"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1587560699334-cc4ff634909a?q=80&w=2070&auto=format&fit=crop";
-          }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-white/80 via-transparent to-transparent flex items-center px-4 md:px-24">
           <div className="max-w-xl">
             <h2 className="text-4xl md:text-6xl font-black text-indiapost-slate tracking-tighter mb-4 uppercase leading-[0.9]">
               Dak <span className="text-indiapost-red">Samvaad</span>
             </h2>
-            <p className="text-xl md:text-2xl font-bold text-indiapost-slate mb-8">December 2024 Special Edition</p>
+            <p className="text-xl md:text-2xl font-bold text-indiapost-slate mb-8">Official Grievance Redressal Portal</p>
             <div className="flex gap-4">
-              <button className="bg-indiapost-red text-white px-8 py-4 rounded-md font-black uppercase text-xs tracking-widest shadow-xl hover:bg-red-700 transition-all">Read More</button>
-              <button className="bg-white text-indiapost-slate px-8 py-4 rounded-md font-black uppercase text-xs tracking-widest shadow-xl border border-stone-200">Archive</button>
+              <button className="bg-indiapost-red text-white px-8 py-4 rounded-md font-black uppercase text-xs tracking-widest shadow-xl hover:bg-red-700 transition-all">Register Grievance</button>
+              <button className="bg-white text-indiapost-slate px-8 py-4 rounded-md font-black uppercase text-xs tracking-widest shadow-xl border border-stone-200">Track Status</button>
             </div>
           </div>
         </div>
