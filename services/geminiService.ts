@@ -123,7 +123,6 @@ export const analyzeComplaint = async (description: string, imageUrl?: string, c
           explanation: "Fallback priority assigned."
         },
         citizenProfile: {
-          // Fix: Type '"Standard"' is not assignable to type '"New" | "Regular" | "Frequent"'.
           loyaltyLevel: "New",
           previousResolutionSatisfaction: "N/A",
           historicalSentimentTrend: "Stable"
@@ -163,9 +162,10 @@ export const getQuickSupport = async (query: string, userHistory?: string): Prom
     },
   });
 
-  const links: GroundingLink[] = response.candidates?.[0]?.groundingMetadata?.groundingChunks
-    ?.map((chunk: any) => chunk.web ? { title: chunk.web.title, uri: chunk.web.uri } : null)
-    .filter(Boolean) || [];
+  const rawChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+  const links: GroundingLink[] = rawChunks
+    .map((chunk: any) => chunk.web ? { title: chunk.web.title, uri: chunk.web.uri } : null)
+    .filter((link): link is GroundingLink => link !== null);
 
   return {
     text: response.text || "Connection issue.",
@@ -173,7 +173,7 @@ export const getQuickSupport = async (query: string, userHistory?: string): Prom
   };
 };
 
-export const findNearbyBranches = async (lat: number, lng: number) => {
+export const findNearbyBranches = async (lat: number, lng: number): Promise<{ text: string, links: string[] }> => {
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
@@ -184,9 +184,15 @@ export const findNearbyBranches = async (lat: number, lng: number) => {
         toolConfig: { retrievalConfig: { latLng: { latitude: lat, longitude: lng } } }
       }
     });
+    
+    const rawChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const mapsLinks: string[] = rawChunks
+      .map((c: any) => c.maps?.uri)
+      .filter((uri): uri is string => typeof uri === 'string');
+
     return {
-      text: response.text,
-      links: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((c: any) => c.maps?.uri).filter(Boolean) || []
+      text: response.text || "No branches found.",
+      links: mapsLinks
     };
   } catch (e) {
     return { text: "Location services unavailable.", links: [] };

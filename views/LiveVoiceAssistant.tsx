@@ -88,7 +88,9 @@ const LiveVoiceAssistant: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           scriptProcessor.connect(audioContextRef.current!.destination);
         },
         onmessage: async (message) => {
-          const audioData = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+          const parts = message.serverContent?.modelTurn?.parts;
+          const audioData = parts && parts.length > 0 ? parts[0].inlineData?.data : undefined;
+          
           if (audioData && outputAudioContextRef.current) {
             const ctx = outputAudioContextRef.current;
             nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
