@@ -34,7 +34,8 @@ import {
   Plus,
   TrendingUp,
   PieChart,
-  Calendar
+  Calendar,
+  GanttChart
 } from 'lucide-react';
 
 interface AdminProps {
@@ -112,53 +113,53 @@ const AdminTickets: React.FC<AdminProps> = ({ complaints: initialComplaints, use
   };
 
   const getPriorityColor = (score: number) => {
-    if (score >= 90) return 'text-red-600 bg-red-50';
-    if (score >= 70) return 'text-orange-600 bg-orange-50';
-    if (score >= 40) return 'text-blue-600 bg-blue-50';
-    return 'text-green-600 bg-green-50';
+    if (score >= 90) return 'text-red-600 bg-red-50 border-red-100';
+    if (score >= 70) return 'text-orange-600 bg-orange-50 border-orange-100';
+    if (score >= 40) return 'text-blue-600 bg-blue-50 border-blue-100';
+    return 'text-green-600 bg-green-50 border-green-100';
   };
 
   const getStatusColor = (status: ComplaintStatus) => {
     switch(status) {
-      case ComplaintStatus.OPEN: return 'text-amber-600 bg-amber-50';
-      case ComplaintStatus.SOLVED: return 'text-green-600 bg-green-50';
-      case ComplaintStatus.PENDING: return 'text-blue-600 bg-blue-50';
-      default: return 'text-stone-600 bg-stone-50';
+      case ComplaintStatus.OPEN: return 'text-amber-600 bg-amber-50 border-amber-100';
+      case ComplaintStatus.SOLVED: return 'text-green-600 bg-green-50 border-green-100';
+      case ComplaintStatus.PENDING: return 'text-blue-600 bg-blue-50 border-blue-100';
+      default: return 'text-stone-600 bg-stone-50 border-stone-100';
     }
   };
 
   const renderQueue = () => (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 flex flex-col flex-grow shadow-sm overflow-hidden animate-in fade-in duration-500">
+    <div className="bg-white dark:bg-stone-900 rounded-[2.5rem] border border-indiapost-sand/30 dark:border-stone-800 flex flex-col flex-grow shadow-2xl shadow-indiapost-sand/10 overflow-hidden animate-in fade-in duration-700">
       {/* Table Header & Tabs */}
-      <div className="p-6 border-b border-stone-100 dark:border-stone-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-         <div className="flex items-center gap-8 border-b md:border-b-0 border-stone-100">
+      <div className="p-8 border-b border-indiapost-sand/20 dark:border-stone-800 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-indiapost-cream/10">
+         <div className="flex items-center gap-10">
            {['all', 'OPEN', 'PENDING', 'SOLVED'].map(s => (
              <button 
                key={s}
                onClick={() => setFilterStatus(s)}
-               className={`pb-4 px-2 text-[11px] font-black uppercase tracking-widest transition-all relative ${
-                 filterStatus === s ? 'text-blue-600' : 'text-stone-400 hover:text-stone-600'
+               className={`pb-4 px-2 text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                 filterStatus === s ? 'text-indiapost-red' : 'text-stone-400 hover:text-stone-600'
                }`}
              >
                {s} Cases
-               {filterStatus === s && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 animate-in fade-in zoom-in duration-300"></div>}
+               {filterStatus === s && <div className="absolute bottom-0 left-0 w-full h-1 bg-indiapost-red rounded-full animate-in fade-in zoom-in duration-300"></div>}
              </button>
            ))}
          </div>
 
-         <div className="flex items-center gap-3">
-           <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-300" size={14} />
+         <div className="flex items-center gap-4">
+           <div className="relative group">
+             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-indiapost-sand group-focus-within:text-indiapost-red transition-colors" size={16} />
              <input 
                type="text" 
                placeholder="Search records..." 
-               className="pl-10 pr-4 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-xl text-xs font-bold outline-none focus:border-blue-500 transition-all w-64"
+               className="pl-12 pr-6 py-3 bg-indiapost-cream/30 dark:bg-stone-800 border-2 border-indiapost-sand/20 dark:border-stone-700 rounded-2xl text-[11px] font-black uppercase tracking-widest outline-none focus:border-indiapost-red transition-all w-72 shadow-inner"
                value={searchQuery}
                onChange={(e) => setSearchQuery(e.target.value)}
              />
            </div>
-           <button className="p-2 border border-stone-100 dark:border-stone-700 rounded-lg text-stone-400 hover:bg-stone-50 transition-colors">
-             <Filter size={16} />
+           <button className="p-3 bg-white dark:bg-stone-800 border-2 border-indiapost-sand/20 rounded-2xl text-indiapost-sand hover:text-indiapost-red hover:border-indiapost-red transition-all shadow-sm">
+             <Filter size={18} />
            </button>
          </div>
       </div>
@@ -166,46 +167,46 @@ const AdminTickets: React.FC<AdminProps> = ({ complaints: initialComplaints, use
       {/* The Main Table */}
       <div className="flex-grow overflow-y-auto custom-scrollbar relative">
         <table className="w-full text-left border-collapse">
-          <thead className="sticky top-0 bg-stone-50 dark:bg-stone-800 z-10 border-b border-stone-100 dark:border-stone-700">
-            <tr className="text-[10px] font-black text-stone-400 uppercase tracking-widest">
-              <th className="px-6 py-4 w-10"><Square size={14} /></th>
-              <th className="px-6 py-4">Options</th>
-              <th className="px-6 py-4">Ref Number</th>
-              <th className="px-6 py-4">Date</th>
-              <th className="px-6 py-4">Sender</th>
-              <th className="px-6 py-4">Location</th>
-              <th className="px-6 py-4">Category</th>
-              <th className="px-6 py-4">Priority Score</th>
-              <th className="px-6 py-4">Status</th>
+          <thead className="sticky top-0 bg-indiapost-cream/50 dark:bg-stone-800 backdrop-blur-md z-10 border-b border-indiapost-sand/20 dark:border-stone-700">
+            <tr className="text-[9px] font-black text-indiapost-sand uppercase tracking-[0.3em]">
+              <th className="px-8 py-5 w-10 text-center"><Square size={14} className="mx-auto" /></th>
+              <th className="px-8 py-5">Options</th>
+              <th className="px-8 py-5">Ref Number</th>
+              <th className="px-8 py-5">Date</th>
+              <th className="px-8 py-5">Sender</th>
+              <th className="px-8 py-5">Location</th>
+              <th className="px-8 py-5">Category</th>
+              <th className="px-8 py-5">Priority Score</th>
+              <th className="px-8 py-5">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
+          <tbody className="divide-y divide-indiapost-sand/10 dark:divide-stone-800">
             {filtered.map(c => (
               <tr 
                 key={c.id} 
-                className={`group hover:bg-blue-50/30 dark:hover:bg-blue-900/5 transition-colors cursor-pointer ${selectedId === c.id ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                className={`group hover:bg-indiapost-cream/30 dark:hover:bg-blue-900/5 transition-colors cursor-pointer ${selectedId === c.id ? 'bg-indiapost-cream/50 dark:bg-blue-900/10' : ''}`}
                 onClick={() => setSelectedId(c.id)}
               >
-                <td className="px-6 py-4">
-                  <input type="checkbox" className="accent-blue-600" checked={selectedBulkIds.has(c.id)} onChange={() => toggleBulkId(c.id)} onClick={(e) => e.stopPropagation()} />
+                <td className="px-8 py-5 text-center">
+                  <input type="checkbox" className="accent-indiapost-red w-4 h-4" checked={selectedBulkIds.has(c.id)} onChange={() => toggleBulkId(c.id)} onClick={(e) => e.stopPropagation()} />
                 </td>
-                <td className="px-6 py-4">
-                  <button className="p-1 hover:bg-white dark:hover:bg-stone-700 rounded transition-all text-stone-400"><MoreVertical size={14} /></button>
+                <td className="px-8 py-5">
+                  <button className="p-2 hover:bg-white dark:hover:bg-stone-700 rounded-xl transition-all text-indiapost-sand"><MoreVertical size={16} /></button>
                 </td>
-                <td className="px-6 py-4 text-xs font-black text-indiapost-red">{c.id}</td>
-                <td className="px-6 py-4 text-[11px] font-bold text-stone-400">{new Date(c.date).toLocaleDateString()}</td>
-                <td className="px-6 py-4 text-xs font-bold text-stone-700 dark:text-stone-300">{c.userName}</td>
-                <td className="px-6 py-4 text-[11px] font-bold text-stone-400 uppercase tracking-tighter">{c.postOffice}</td>
-                <td className="px-6 py-4">
-                  <span className="text-[11px] font-bold text-stone-600 dark:text-stone-400">{c.analysis?.category || 'General'}</span>
+                <td className="px-8 py-5 text-[11px] font-black text-indiapost-red tracking-widest">{c.id}</td>
+                <td className="px-8 py-5 text-[10px] font-bold text-stone-400">{new Date(c.date).toLocaleDateString()}</td>
+                <td className="px-8 py-5 text-xs font-black text-stone-800 dark:text-stone-200 uppercase tracking-tight">{c.userName}</td>
+                <td className="px-8 py-5 text-[10px] font-black text-indiapost-sand uppercase tracking-widest truncate max-w-[120px]">{c.postOffice}</td>
+                <td className="px-8 py-5">
+                  <span className="text-[10px] font-black text-stone-600 dark:text-stone-400 uppercase tracking-widest">{c.analysis?.category || 'General'}</span>
                 </td>
-                <td className="px-6 py-4">
-                  <span className={`px-4 py-1.5 rounded-lg text-xs font-black tabular-nums transition-colors ${getPriorityColor(c.analysis?.priorityScore || 0)}`}>
+                <td className="px-8 py-5">
+                  <span className={`px-5 py-2 rounded-xl text-[11px] font-black tabular-nums border-2 transition-all ${getPriorityColor(c.analysis?.priorityScore || 0)} shadow-sm`}>
                     {c.analysis?.priorityScore || 0}
                   </span>
                 </td>
-                <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(c.status)}`}>
+                <td className="px-8 py-5">
+                  <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] border-2 ${getStatusColor(c.status)}`}>
                     {c.status}
                   </span>
                 </td>
@@ -215,467 +216,331 @@ const AdminTickets: React.FC<AdminProps> = ({ complaints: initialComplaints, use
         </table>
 
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-30">
-            <History size={64} className="text-stone-300" />
-            <p className="text-xs font-black uppercase tracking-[0.4em]">No matching tickets found</p>
+          <div className="flex flex-col items-center justify-center py-48 gap-8 opacity-20">
+            <Inbox size={80} className="text-indiapost-sand" />
+            <p className="text-[10px] font-black uppercase tracking-[0.5em]">No matching records found in registry</p>
           </div>
         )}
       </div>
 
       {/* Footer / Pagination */}
-      <div className="p-4 border-t border-stone-100 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/50 flex justify-between items-center px-8">
-         <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-           Showing {filtered.length} of {complaints.length} records
+      <div className="p-6 border-t border-indiapost-sand/20 dark:border-stone-800 bg-indiapost-cream/10 dark:bg-stone-800/50 flex justify-between items-center px-12">
+         <p className="text-[10px] font-black text-indiapost-sand uppercase tracking-[0.3em]">
+           Live Registry View • {filtered.length} Results
          </p>
-         <div className="flex gap-2">
-           <button className="px-4 py-1.5 border border-stone-100 dark:border-stone-700 rounded text-[10px] font-bold text-stone-400 hover:bg-white transition-all">Prev</button>
-           <button className="px-4 py-1.5 bg-blue-600 text-white rounded text-[10px] font-bold shadow-md">1</button>
-           <button className="px-4 py-1.5 border border-stone-100 dark:border-stone-700 rounded text-[10px] font-bold text-stone-400 hover:bg-white transition-all">Next</button>
+         <div className="flex gap-3">
+           <button className="px-6 py-2 border-2 border-indiapost-sand/20 dark:border-stone-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-indiapost-sand hover:bg-white transition-all">Previous</button>
+           <button className="px-6 py-2 bg-indiapost-red text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indiapost-red/20">1</button>
+           <button className="px-6 py-2 border-2 border-indiapost-sand/20 dark:border-stone-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-indiapost-sand hover:bg-white transition-all">Next</button>
          </div>
       </div>
     </div>
   );
 
-  const renderReports = () => {
-    const solved = complaints.filter(c => c.status === ComplaintStatus.SOLVED).length;
-    const pending = complaints.filter(c => c.status === ComplaintStatus.PENDING).length;
-    const open = complaints.filter(c => c.status === ComplaintStatus.OPEN).length;
-    
-    return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 overflow-y-auto custom-scrollbar flex-grow p-1">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
-            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-4">Total Received</p>
-            <p className="text-3xl font-black text-stone-900 dark:text-white">{complaints.length}</p>
-            <div className="flex items-center gap-2 mt-4 text-[10px] font-bold text-green-500">
-               <TrendingUp size={12} /> +12% from last week
-            </div>
+  const renderReports = () => (
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 overflow-y-auto custom-scrollbar flex-grow p-2">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        {[
+          { label: "Total Received", val: complaints.length, trend: "+12%", color: "text-stone-900" },
+          { label: "Case Resolved", val: complaints.filter(c => c.status === ComplaintStatus.SOLVED).length, trend: "88% rate", color: "text-green-600" },
+          { label: "Avg. Latency", val: "2.4d", trend: "-0.5d", color: "text-blue-600" },
+          { label: "Public Score", val: "4.8", trend: "★ ★ ★ ★", color: "text-amber-500" }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] border border-indiapost-sand/30 dark:border-stone-800 shadow-sm shadow-indiapost-sand/10">
+            <p className="text-[10px] font-black text-indiapost-sand uppercase tracking-[0.3em] mb-6">{stat.label}</p>
+            <p className={`text-4xl font-black ${stat.color}`}>{stat.val}</p>
+            <p className="text-[10px] font-bold text-stone-400 mt-4 uppercase tracking-widest">{stat.trend} efficiency</p>
           </div>
-          <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
-            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-4">Resolved</p>
-            <p className="text-3xl font-black text-green-600">{solved}</p>
-            <div className="mt-4 h-1 w-full bg-stone-100 dark:bg-stone-800 rounded-full">
-               <div className="h-full bg-green-500 rounded-full" style={{ width: `${(solved/complaints.length)*100}%` }}></div>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
-            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-4">Avg. Resolution</p>
-            <p className="text-3xl font-black text-blue-600">2.4 <span className="text-sm">days</span></p>
-            <p className="text-[10px] font-bold text-stone-400 mt-4 uppercase">Target: 3.0 days</p>
-          </div>
-          <div className="bg-white dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
-            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-4">Satisfaction Score</p>
-            <p className="text-3xl font-black text-amber-500">4.8 <span className="text-sm">/ 5</span></p>
-            <div className="flex gap-1 mt-4">
-              {[1,2,3,4,5].map(i => <div key={i} className={`w-3 h-1.5 rounded ${i === 5 ? 'bg-stone-100' : 'bg-amber-500'}`}></div>)}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-           <div className="bg-white dark:bg-stone-900 p-8 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
-             <div className="flex justify-between items-center mb-8">
-                <h3 className="text-sm font-black uppercase tracking-tighter">Volume by Category</h3>
-                <PieChart size={18} className="text-stone-300" />
-             </div>
-             <div className="space-y-6">
-                {[
-                  { label: 'Lost Parcel', val: 45, color: 'bg-red-500' },
-                  { label: 'Delivery Delay', val: 30, color: 'bg-amber-500' },
-                  { label: 'Damaged Item', val: 15, color: 'bg-blue-500' },
-                  { label: 'Other', val: 10, color: 'bg-stone-500' }
-                ].map((item, i) => (
-                  <div key={i} className="space-y-2">
-                    <div className="flex justify-between text-[10px] font-bold uppercase">
-                      <span>{item.label}</span>
-                      <span>{item.val}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-stone-50 dark:bg-stone-800 rounded-full">
-                       <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.val}%` }}></div>
-                    </div>
-                  </div>
-                ))}
-             </div>
-           </div>
-           
-           <div className="bg-white dark:bg-stone-900 p-8 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm">
-             <div className="flex justify-between items-center mb-8">
-                <h3 className="text-sm font-black uppercase tracking-tighter">Staff Performance</h3>
-                <BarChart size={18} className="text-stone-300" />
-             </div>
-             <div className="space-y-6">
-                {[
-                  { name: 'Arjun K.', cases: 142, rate: 98 },
-                  { name: 'Meera S.', cases: 98, rate: 85 },
-                  { name: 'Rahul V.', cases: 76, rate: 92 }
-                ].map((staff, i) => (
-                  <div key={i} className="flex items-center justify-between border-b border-stone-50 dark:border-stone-800 pb-4">
-                    <div className="flex items-center gap-3">
-                       <div className="w-8 h-8 rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-[10px] font-black">{staff.name.charAt(0)}</div>
-                       <span className="text-xs font-bold">{staff.name}</span>
-                    </div>
-                    <div className="text-right">
-                       <p className="text-[10px] font-black text-stone-900 dark:text-white uppercase">{staff.cases} Solved</p>
-                       <p className="text-[9px] font-bold text-green-500">{staff.rate}% Success</p>
-                    </div>
-                  </div>
-                ))}
-             </div>
-           </div>
-        </div>
+        ))}
       </div>
-    );
-  };
-
-  const renderActivity = () => {
-    const allUpdates = complaints.flatMap(c => c.updates.map(u => ({ ...u, ticketId: c.id })))
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    return (
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col flex-grow animate-in fade-in duration-500">
-        <div className="p-8 border-b border-stone-100 dark:border-stone-800">
-           <h3 className="text-sm font-black uppercase tracking-tighter">System-wide Activity Log</h3>
-        </div>
-        <div className="flex-grow overflow-y-auto p-8 space-y-6 custom-scrollbar">
-          {allUpdates.map((u, i) => (
-            <div key={i} className="flex gap-6 group">
-              <div className="flex flex-col items-center shrink-0">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
-                  u.type === 'status_change' ? 'bg-amber-50 text-amber-500 border-amber-100' : 'bg-blue-50 text-blue-500 border-blue-100'
-                }`}>
-                  {u.type === 'status_change' ? <RotateCcw size={18} /> : <MessageCircle size={18} />}
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <div className="bg-white dark:bg-stone-900 p-10 rounded-[2.5rem] border border-indiapost-sand/30 dark:border-stone-800 shadow-sm">
+          <h3 className="text-sm font-black uppercase tracking-[0.2em] mb-10 text-stone-900 dark:text-white flex items-center gap-3">
+             <GanttChart size={20} className="text-indiapost-red" /> Performance Distribution
+          </h3>
+          <div className="space-y-8">
+            {[
+              { label: 'Lost Parcel', val: 45, color: 'bg-red-500' },
+              { label: 'Delivery Delay', val: 30, color: 'bg-amber-500' },
+              { label: 'Staff Misconduct', val: 15, color: 'bg-blue-500' },
+              { label: 'Other Queries', val: 10, color: 'bg-stone-500' }
+            ].map((item, i) => (
+              <div key={i} className="space-y-3">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-stone-500">
+                  <span>{item.label}</span>
+                  <span>{item.val}% Volume</span>
                 </div>
-                {i !== allUpdates.length - 1 && <div className="w-px h-full bg-stone-100 dark:bg-stone-800 my-2"></div>}
-              </div>
-              <div className="pb-8 border-b border-stone-50 dark:border-stone-800 w-full group-last:border-0">
-                <div className="flex justify-between items-center mb-2">
-                   <p className="text-xs font-black text-stone-900 dark:text-white uppercase tracking-tighter">
-                     {u.author} <span className="text-stone-300 mx-2 font-normal">updated</span> <span className="text-indiapost-red">#{u.ticketId}</span>
-                   </p>
-                   <span className="text-[10px] font-bold text-stone-400">{new Date(u.timestamp).toLocaleString()}</span>
+                <div className="h-3 w-full bg-indiapost-cream dark:bg-stone-800 rounded-full overflow-hidden shadow-inner">
+                   <div className={`h-full ${item.color} rounded-full transition-all duration-1000 delay-300`} style={{ width: `${item.val}%` }}></div>
                 </div>
-                <p className="text-sm text-stone-500 dark:text-stone-400 font-medium leading-relaxed italic">"{u.message}"</p>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-    );
-  };
 
-  const renderCitizens = () => {
-    const uniqueUsers = Array.from(new Set(complaints.map(c => c.userId))).map(id => {
-      const c = complaints.find(comp => comp.userId === id);
-      const userComplaints = complaints.filter(comp => comp.userId === id);
-      return {
-        id,
-        name: c?.userName,
-        count: userComplaints.length,
-        lastDate: userComplaints[0].date
-      };
-    });
-
-    return (
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm overflow-hidden flex flex-col flex-grow animate-in fade-in duration-500">
-        <div className="p-8 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center">
-           <h3 className="text-sm font-black uppercase tracking-tighter">Registered Citizens</h3>
-           <div className="flex gap-2">
-             <button className="px-4 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-lg text-xs font-bold text-stone-600">Export CSV</button>
-           </div>
+        <div className="bg-white dark:bg-stone-900 p-10 rounded-[2.5rem] border border-indiapost-sand/30 dark:border-stone-800 shadow-sm">
+          <h3 className="text-sm font-black uppercase tracking-[0.2em] mb-10 text-stone-900 dark:text-white flex items-center gap-3">
+             <TrendingUp size={20} className="text-indiapost-red" /> Staff Performance
+          </h3>
+          <div className="divide-y divide-indiapost-sand/10">
+            {[
+              { name: 'Arjun K.', cases: 142, rate: 98 },
+              { name: 'Meera S.', cases: 98, rate: 85 },
+              { name: 'Rahul V.', cases: 76, rate: 92 }
+            ].map((staff, i) => (
+              <div key={i} className="flex items-center justify-between py-6 group">
+                <div className="flex items-center gap-5">
+                   <div className="w-12 h-12 rounded-2xl bg-indiapost-cream dark:bg-stone-800 border border-indiapost-sand/20 flex items-center justify-center text-xs font-black text-indiapost-red shadow-sm group-hover:bg-indiapost-red group-hover:text-white transition-all">
+                     {staff.name.charAt(0)}
+                   </div>
+                   <div>
+                     <span className="text-sm font-black text-stone-800 dark:text-stone-200 uppercase tracking-tight">{staff.name}</span>
+                     <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Branch Officer</p>
+                   </div>
+                </div>
+                <div className="text-right">
+                   <p className="text-[11px] font-black text-stone-900 dark:text-white uppercase tracking-widest">{staff.cases} Solved</p>
+                   <p className="text-[10px] font-bold text-green-500 mt-1">{staff.rate}% Efficiency</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="overflow-y-auto custom-scrollbar">
-          <table className="w-full text-left">
-            <thead className="bg-stone-50 dark:bg-stone-800 sticky top-0">
-              <tr className="text-[10px] font-black text-stone-400 uppercase tracking-widest border-b border-stone-100 dark:border-stone-700">
-                <th className="px-8 py-4">Citizen Name</th>
-                <th className="px-8 py-4">Contact Ref</th>
-                <th className="px-8 py-4">Total Filings</th>
-                <th className="px-8 py-4">Recent Date</th>
-                <th className="px-8 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
-              {uniqueUsers.map(u => (
-                <tr key={u.id} className="hover:bg-stone-50/50 dark:hover:bg-stone-800/30 transition-colors">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-[10px]">{u.name?.charAt(0)}</div>
-                      <span className="text-sm font-bold">{u.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-xs text-stone-400 font-bold">{u.id}</td>
-                  <td className="px-8 py-5">
-                    <span className="px-3 py-1 bg-stone-100 dark:bg-stone-800 rounded-full text-[10px] font-black">{u.count} Cases</span>
-                  </td>
-                  <td className="px-8 py-5 text-xs text-stone-400">{new Date(u.lastDate).toLocaleDateString()}</td>
-                  <td className="px-8 py-5">
-                    <button className="text-[10px] font-black text-blue-600 uppercase hover:underline">View History</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  };
-
-  const renderSettings = () => (
-    <div className="max-w-4xl space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm p-10">
-         <h3 className="text-sm font-black uppercase tracking-tighter mb-8 border-b border-stone-50 dark:border-stone-800 pb-4">Portal Configuration</h3>
-         <div className="space-y-8">
-            <div className="flex items-center justify-between p-6 bg-stone-50 dark:bg-stone-800/50 rounded-2xl">
-               <div>
-                  <p className="text-xs font-black uppercase mb-1">AI-Assisted Classification</p>
-                  <p className="text-[10px] font-bold text-stone-400">Automatically categorize incoming complaints using NLP models.</p>
-               </div>
-               <div className="w-12 h-6 bg-green-500 rounded-full relative shadow-inner"><div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div></div>
-            </div>
-            <div className="flex items-center justify-between p-6 bg-stone-50 dark:bg-stone-800/50 rounded-2xl">
-               <div>
-                  <p className="text-xs font-black uppercase mb-1">Real-time Translation</p>
-                  <p className="text-[10px] font-bold text-stone-400">Automatically translate regional languages to official English/Hindi.</p>
-               </div>
-               <div className="w-12 h-6 bg-green-500 rounded-full relative shadow-inner"><div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div></div>
-            </div>
-            <div className="flex items-center justify-between p-6 bg-stone-50 dark:bg-stone-800/50 rounded-2xl">
-               <div>
-                  <p className="text-xs font-black uppercase mb-1">Citizen SMS Alerts</p>
-                  <p className="text-[10px] font-bold text-stone-400">Send automatic updates to citizens when their ticket status changes.</p>
-               </div>
-               <div className="w-12 h-6 bg-stone-300 rounded-full relative shadow-inner"><div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></div></div>
-            </div>
-         </div>
-      </div>
-
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm p-10">
-         <h3 className="text-sm font-black uppercase tracking-tighter mb-8 text-red-600">Administrative Actions</h3>
-         <button className="px-6 py-3 border border-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-50 transition-colors">Clear Local History Logs</button>
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-[calc(100vh-140px)] bg-[#f8fafc] dark:bg-stone-950 -m-8 overflow-hidden font-sans">
+    <div className="flex h-[calc(100vh-140px)] bg-indiapost-beige dark:bg-stone-950 -m-8 overflow-hidden font-sans transition-colors duration-300">
       
-      {/* --- LEFT SIDEBAR (Category Based Navigation) --- */}
-      <aside className="w-64 bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 flex flex-col shrink-0">
-        <div className="p-6 border-b border-stone-100 dark:border-stone-800">
-           <h2 className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Management Console</h2>
+      {/* SIDEBAR - Enhanced Beige Styling */}
+      <aside className="w-72 bg-white dark:bg-stone-900 border-r border-indiapost-sand/30 dark:border-stone-800 flex flex-col shrink-0 shadow-xl">
+        <div className="p-10 border-b border-indiapost-sand/10 dark:border-stone-800">
+           <h2 className="text-[10px] font-black text-indiapost-sand uppercase tracking-[0.5em] leading-none mb-1">Dak-Vahan</h2>
+           <p className="text-[8px] font-bold text-stone-300 uppercase tracking-widest">Admin Control Module</p>
         </div>
         
-        <nav className="flex-grow py-4 overflow-y-auto custom-scrollbar">
-          <div className="px-4 mb-8">
-            <h3 className="px-2 text-[9px] font-black text-indiapost-red uppercase tracking-widest mb-4">Inbox Section</h3>
-            <ul className="space-y-1">
-              <li 
-                onClick={() => setActiveView('queue')}
-                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'queue' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
-              >
-                <Inbox size={16} /> Ticket Queue
-              </li>
-              <li 
-                onClick={() => setActiveView('activity')}
-                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'activity' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
-              >
-                <Activity size={16} /> Real-time Activity
-              </li>
-              <li 
-                onClick={() => setActiveView('flagged')}
-                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'flagged' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
-              >
-                <Flag size={16} /> Flagged Items
-              </li>
+        <nav className="flex-grow py-8 overflow-y-auto custom-scrollbar px-6">
+          <div className="mb-12">
+            <h3 className="px-4 text-[9px] font-black text-indiapost-red uppercase tracking-[0.3em] mb-6">Central Queue</h3>
+            <ul className="space-y-2">
+              {[
+                { id: 'queue', icon: Inbox, label: 'Active Registry' },
+                { id: 'activity', icon: Activity, label: 'Live Stream' },
+                { id: 'flagged', icon: Flag, label: 'Escalations' }
+              ].map(item => (
+                <li 
+                  key={item.id}
+                  onClick={() => setActiveView(item.id as AdminView)}
+                  className={`p-4 rounded-2xl flex items-center gap-4 font-black text-[11px] uppercase tracking-widest cursor-pointer transition-all border-2 ${
+                    activeView === item.id 
+                      ? 'bg-indiapost-red text-white border-indiapost-red shadow-lg shadow-indiapost-red/20 scale-[1.02]' 
+                      : 'text-indiapost-sand border-transparent hover:bg-indiapost-cream/50 dark:hover:bg-stone-800'
+                  }`}
+                >
+                  <item.icon size={18} /> {item.label}
+                </li>
+              ))}
             </ul>
           </div>
 
-          <div className="px-4 mb-8">
-            <h3 className="px-2 text-[9px] font-black text-stone-400 uppercase tracking-widest mb-4">Users Section</h3>
-            <ul className="space-y-1">
-              <li 
-                onClick={() => setActiveView('citizens')}
-                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'citizens' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
-              >
-                <Users size={16} /> Citizen Profiles
-              </li>
-              <li 
-                onClick={() => setActiveView('staff')}
-                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'staff' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
-              >
-                <Briefcase size={16} /> Staff Directory
-              </li>
+          <div className="mb-12">
+            <h3 className="px-4 text-[9px] font-black text-indiapost-sand uppercase tracking-[0.3em] mb-6">Database</h3>
+            <ul className="space-y-2">
+              {[
+                { id: 'citizens', icon: Users, label: 'Citizen Base' },
+                { id: 'staff', icon: Briefcase, label: 'Department' }
+              ].map(item => (
+                <li 
+                  key={item.id}
+                  onClick={() => setActiveView(item.id as AdminView)}
+                  className={`p-4 rounded-2xl flex items-center gap-4 font-black text-[11px] uppercase tracking-widest cursor-pointer transition-all border-2 ${
+                    activeView === item.id 
+                      ? 'bg-stone-800 text-white border-stone-800 shadow-lg scale-[1.02]' 
+                      : 'text-indiapost-sand border-transparent hover:bg-indiapost-cream/50 dark:hover:bg-stone-800'
+                  }`}
+                >
+                  <item.icon size={18} /> {item.label}
+                </li>
+              ))}
             </ul>
           </div>
 
-          <div className="px-4">
-            <h3 className="px-2 text-[9px] font-black text-stone-400 uppercase tracking-widest mb-4">Configuration</h3>
-            <ul className="space-y-1">
-              <li 
-                onClick={() => setActiveView('reports')}
-                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'reports' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
-              >
-                <BarChart size={16} /> Reports & Analytics
-              </li>
-              <li 
-                onClick={() => setActiveView('settings')}
-                className={`p-3 rounded-lg flex items-center gap-3 font-bold text-xs cursor-pointer transition-all ${activeView === 'settings' ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400' : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800'}`}
-              >
-                <Settings size={16} /> Portal Settings
-              </li>
+          <div>
+            <h3 className="px-4 text-[9px] font-black text-indiapost-sand uppercase tracking-[0.3em] mb-6">Intelligence</h3>
+            <ul className="space-y-2">
+              {[
+                { id: 'reports', icon: BarChart, label: 'Statistics' },
+                { id: 'settings', icon: Settings, label: 'Framework' }
+              ].map(item => (
+                <li 
+                  key={item.id}
+                  onClick={() => setActiveView(item.id as AdminView)}
+                  className={`p-4 rounded-2xl flex items-center gap-4 font-black text-[11px] uppercase tracking-widest cursor-pointer transition-all border-2 ${
+                    activeView === item.id 
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-lg scale-[1.02]' 
+                      : 'text-indiapost-sand border-transparent hover:bg-indiapost-cream/50 dark:hover:bg-stone-800'
+                  }`}
+                >
+                  <item.icon size={18} /> {item.label}
+                </li>
+              ))}
             </ul>
           </div>
         </nav>
 
-        <div className="p-6 border-t border-stone-100 dark:border-stone-800">
-           <div className="flex items-center gap-3 bg-stone-50 dark:bg-stone-800 p-3 rounded-xl">
-             <div className="w-8 h-8 rounded-lg bg-indiapost-red flex items-center justify-center text-white font-black text-xs">A</div>
+        <div className="p-8 border-t border-indiapost-sand/10 dark:border-stone-800">
+           <div className="flex items-center gap-4 bg-indiapost-beige dark:bg-stone-800 p-4 rounded-2xl border border-indiapost-sand/20 shadow-inner">
+             <div className="w-10 h-10 rounded-xl bg-indiapost-red flex items-center justify-center text-white font-black text-xs shadow-md shadow-indiapost-red/20">A</div>
              <div className="overflow-hidden">
-               <p className="text-[10px] font-black truncate">{user.name}</p>
-               <p className="text-[8px] font-bold text-stone-400 uppercase truncate">Branch Admin</p>
+               <p className="text-[11px] font-black text-stone-900 dark:text-white uppercase truncate">{user.name}</p>
+               <p className="text-[8px] font-bold text-indiapost-sand uppercase tracking-widest truncate">Authorized Admin</p>
              </div>
            </div>
         </div>
       </aside>
 
-      {/* --- MAIN WORKSPACE --- */}
+      {/* MAIN WORKSPACE */}
       <main className="flex-grow flex flex-col min-w-0">
         
-        {/* Top Action Bar */}
-        <header className="bg-white dark:bg-stone-900 h-16 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between px-8 shrink-0">
+        {/* Header Bar */}
+        <header className="bg-white dark:bg-stone-900 h-20 border-b border-indiapost-sand/20 dark:border-stone-800 flex items-center justify-between px-12 shrink-0 shadow-sm">
            <div className="flex items-center gap-6">
-             <div className="flex items-center gap-2 text-stone-400">
-               <span className="text-xs font-bold">Tickets</span>
-               <ChevronRight size={14} />
-               <span className="text-xs font-black text-stone-900 dark:text-white uppercase tracking-tighter">
-                 {activeView === 'queue' ? 'Active Workspace' : activeView.toUpperCase()}
+             <div className="flex items-center gap-4">
+               <span className="text-[10px] font-black text-indiapost-sand uppercase tracking-widest">Posty Platform</span>
+               <ChevronRight size={14} className="text-indiapost-sand/40" />
+               <span className="text-sm font-black text-stone-900 dark:text-white uppercase tracking-tighter">
+                 {activeView === 'queue' ? 'Registry Workspace' : activeView.toUpperCase()}
                </span>
              </div>
            </div>
            
-           <div className="flex items-center gap-4">
-             <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors">
-               <Plus size={16} /> New Entry
+           <div className="flex items-center gap-6">
+             <button className="flex items-center gap-3 bg-indiapost-red text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-indiapost-red/20 hover:bg-red-800 transition-all hover:-translate-y-0.5 active:translate-y-0">
+               <Plus size={18} /> New Ticket
              </button>
-             <button className="p-2 text-stone-400 hover:bg-stone-100 rounded-lg transition-colors">
-                <Search size={18} />
-             </button>
-             <button className="p-2 text-stone-400 hover:bg-stone-100 rounded-lg transition-colors">
-                <AlertCircle size={18} />
+             <div className="h-10 w-px bg-indiapost-sand/20"></div>
+             <button className="p-3 text-indiapost-sand hover:bg-indiapost-beige rounded-xl transition-all"><Search size={20} /></button>
+             <button className="p-3 text-indiapost-sand hover:bg-indiapost-beige rounded-xl transition-all relative">
+                <AlertCircle size={20} />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-indiapost-red rounded-full animate-ping"></span>
              </button>
            </div>
         </header>
 
-        {/* Content Section */}
-        <div className="flex-grow p-8 overflow-hidden flex flex-col">
+        {/* Dynamic Content */}
+        <div className="flex-grow p-10 overflow-hidden flex flex-col">
           {activeView === 'queue' && renderQueue()}
           {activeView === 'reports' && renderReports()}
-          {activeView === 'activity' && renderActivity()}
-          {activeView === 'citizens' && renderCitizens()}
-          {activeView === 'settings' && renderSettings()}
-          {(activeView === 'flagged' || activeView === 'staff') && (
-            <div className="bg-white dark:bg-stone-900 p-20 rounded-2xl border border-dashed border-stone-200 dark:border-stone-800 flex flex-col items-center justify-center gap-6 opacity-40">
-               <ShieldCheck size={48} className="text-stone-300" />
-               <p className="text-sm font-black uppercase tracking-widest text-center">Section under maintenance<br/><span className="text-xs font-bold mt-2 block">Enterprise access only</span></p>
+          
+          {(activeView === 'activity' || activeView === 'citizens' || activeView === 'settings') && (
+            <div className="bg-white dark:bg-stone-900 p-32 rounded-[3.5rem] border border-dashed border-indiapost-sand/30 dark:border-stone-800 flex flex-col items-center justify-center gap-10 opacity-30 shadow-inner">
+               <History size={100} className="text-indiapost-sand" />
+               <div className="text-center">
+                 <p className="text-xl font-black uppercase tracking-[0.4em] mb-3 text-stone-900 dark:text-white">Workspace Loading...</p>
+                 <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Syncing with Central Ministry Database</p>
+               </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* --- SLIDE-OVER DETAIL PANE --- */}
+      {/* DETAIL PANE SLIDE-OVER */}
       {selectedTicket && activeView === 'queue' && (
-        <aside className="fixed inset-y-0 right-0 w-[500px] bg-white dark:bg-stone-900 border-l border-stone-200 dark:border-stone-800 shadow-[-20px_0_40px_rgba(0,0,0,0.1)] z-50 flex flex-col animate-in slide-in-from-right duration-300">
-           <header className="p-8 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center bg-stone-50 dark:bg-stone-800/50">
+        <aside className="fixed inset-y-0 right-0 w-[550px] bg-white dark:bg-stone-900 border-l border-indiapost-sand/30 dark:border-stone-800 shadow-[-40px_0_80px_rgba(180,180,140,0.15)] z-50 flex flex-col animate-in slide-in-from-right duration-500">
+           <header className="p-10 border-b border-indiapost-sand/20 dark:border-stone-800 flex justify-between items-center bg-indiapost-cream/20 dark:bg-stone-800/50">
              <div>
-               <h2 className="text-xl font-black tracking-tighter text-stone-900 dark:text-white uppercase leading-none">Record Details</h2>
-               <p className="text-[10px] font-black text-indiapost-red uppercase tracking-widest mt-2">Case ID: {selectedTicket.id}</p>
+               <h2 className="text-2xl font-black tracking-tighter text-stone-900 dark:text-white uppercase leading-none mb-1">Record Inspector</h2>
+               <p className="text-[10px] font-black text-indiapost-red uppercase tracking-[0.4em] mt-3">Ref ID: {selectedTicket.id}</p>
              </div>
-             <button onClick={() => setSelectedId(null)} className="p-3 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-full transition-colors text-stone-400">
-               <X size={20} />
+             <button onClick={() => setSelectedId(null)} className="p-4 hover:bg-indiapost-beige dark:hover:bg-stone-700 rounded-2xl transition-all text-indiapost-sand hover:text-indiapost-red shadow-sm bg-white dark:bg-stone-900">
+               <X size={24} />
              </button>
            </header>
 
-           <div className="flex-grow overflow-y-auto p-8 custom-scrollbar space-y-10">
-              <section className="space-y-4">
-                 <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-widest flex items-center gap-2">
-                   <FileText size={14} /> Description
+           <div className="flex-grow overflow-y-auto p-10 custom-scrollbar space-y-12">
+              <section className="space-y-6">
+                 <h4 className="text-[10px] font-black text-indiapost-sand uppercase tracking-[0.3em] flex items-center gap-3">
+                   <FileText size={16} /> Original Input
                  </h4>
-                 <div className="p-6 bg-stone-50 dark:bg-stone-800 rounded-2xl border border-stone-100 dark:border-stone-700 shadow-inner">
-                    <p className="text-sm font-bold text-stone-800 dark:text-stone-200 leading-relaxed italic">"{selectedTicket.description}"</p>
+                 <div className="p-8 bg-indiapost-cream/10 dark:bg-stone-800 rounded-[2.5rem] border-2 border-indiapost-sand/10 dark:border-stone-700 shadow-inner">
+                    <p className="text-base font-medium text-stone-800 dark:text-stone-200 leading-relaxed italic">"{selectedTicket.description}"</p>
                     {selectedTicket.imageUrl && (
-                      <div className="mt-6 rounded-xl overflow-hidden shadow-lg">
+                      <div className="mt-8 rounded-[1.5rem] overflow-hidden shadow-2xl border-4 border-white dark:border-stone-700">
                         <img src={selectedTicket.imageUrl} alt="evidence" className="w-full h-auto" />
                       </div>
                     )}
                  </div>
               </section>
 
-              <section className="space-y-4">
+              <section className="space-y-6">
                  <div className="flex justify-between items-center">
-                   <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-widest flex items-center gap-2">
-                     <MessageCircle size={14} /> Conversation History
+                   <h4 className="text-[10px] font-black text-indiapost-sand uppercase tracking-[0.3em] flex items-center gap-3">
+                     <MessageCircle size={16} /> Internal Audit
                    </h4>
-                   <button className="text-[9px] font-black text-blue-600 uppercase">View All logs</button>
+                   <button className="text-[9px] font-black text-indiapost-red uppercase tracking-widest border-b border-indiapost-red/20">Full Logs</button>
                  </div>
-                 <div className="space-y-4">
+                 <div className="space-y-5">
                     {selectedTicket.updates.map((u, i) => (
-                      <div key={i} className={`p-5 rounded-2xl border ${u.isInternal ? 'bg-amber-50 border-amber-100 dark:bg-amber-900/10 dark:border-amber-900/20' : 'bg-white dark:bg-stone-800 border-stone-100 dark:border-stone-700 shadow-sm'}`}>
-                         <div className="flex justify-between text-[8px] font-black uppercase text-stone-400 mb-2">
+                      <div key={i} className={`p-6 rounded-2xl border-2 ${u.isInternal ? 'bg-amber-500/5 border-amber-500/10' : 'bg-indiapost-cream/5 border-indiapost-sand/10'} shadow-sm`}>
+                         <div className="flex justify-between text-[8px] font-black uppercase text-indiapost-sand tracking-widest mb-3">
                            <span>{u.author}</span>
                            <span>{new Date(u.timestamp).toLocaleString()}</span>
                          </div>
-                         <p className="text-xs font-bold">{u.message}</p>
+                         <p className="text-xs font-bold text-stone-700 dark:text-stone-300">{u.message}</p>
                       </div>
                     ))}
                  </div>
               </section>
 
-              <section className="space-y-4">
-                 <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-widest flex items-center gap-2">
-                   <Zap size={14} className="text-indiapost-red fill-indiapost-red" /> Staff Assistant Suggestion
+              <section className="space-y-6">
+                 <h4 className="text-[10px] font-black text-indiapost-sand uppercase tracking-[0.3em] flex items-center gap-3">
+                   <Zap size={16} className="text-indiapost-red fill-indiapost-red animate-pulse" /> AI Support Response
                  </h4>
-                 <div className="p-5 bg-stone-900 rounded-2xl text-stone-100 shadow-xl border border-white/10">
-                    <p className="text-xs font-medium leading-relaxed mb-4">{selectedTicket.analysis?.suggestedResponse}</p>
+                 <div className="p-8 bg-stone-900 rounded-[2.5rem] text-stone-100 shadow-2xl border border-white/10 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-indiapost-red/10 rounded-bl-full group-hover:scale-110 transition-transform"></div>
+                    <p className="text-sm font-medium leading-relaxed mb-8 relative z-10">{selectedTicket.analysis?.suggestedResponse}</p>
                     <button 
                       onClick={() => setReply(selectedTicket.analysis?.suggestedResponse || '')}
-                      className="text-[9px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all"
+                      className="text-[10px] font-black uppercase tracking-[0.2em] bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl transition-all relative z-10 shadow-lg"
                     >
-                      Use Suggestion
+                      Autofill Template
                     </button>
                  </div>
               </section>
            </div>
 
-           <footer className="p-8 border-t border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-              <div className="flex gap-2 mb-4">
-                 <button onClick={() => setIsInternal(false)} className={`px-5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!isInternal ? 'bg-stone-900 text-white' : 'text-stone-400 hover:bg-stone-50'}`}>Public Reply</button>
-                 <button onClick={() => setIsInternal(true)} className={`px-5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${isInternal ? 'bg-amber-500 text-white' : 'text-stone-400 hover:bg-stone-50'}`}><Lock size={12} /> Internal Note</button>
+           <footer className="p-10 border-t border-indiapost-sand/20 dark:border-stone-800 bg-indiapost-cream/5 dark:bg-stone-900 shadow-[0_-20px_50px_rgba(180,180,140,0.08)]">
+              <div className="flex gap-4 mb-6">
+                 <button onClick={() => setIsInternal(false)} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!isInternal ? 'bg-stone-900 text-white shadow-xl' : 'text-indiapost-sand hover:bg-indiapost-cream'}`}>Citizen Response</button>
+                 <button onClick={() => setIsInternal(true)} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${isInternal ? 'bg-amber-500 text-white shadow-xl' : 'text-indiapost-sand hover:bg-indiapost-cream'}`}><Lock size={12} /> Officer Note</button>
               </div>
               <div className="relative">
                 <textarea 
-                  placeholder={isInternal ? "Official supervisor notes..." : "Respond to the citizen professionally..."}
-                  className={`w-full p-6 pr-24 rounded-2xl border outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-sm min-h-[120px] shadow-inner ${isInternal ? 'bg-amber-50/20 border-amber-100' : 'bg-stone-50 dark:bg-stone-800 border-stone-100 dark:border-stone-700'}`}
+                  placeholder={isInternal ? "Classified supervisor remarks..." : "Compose professional response..."}
+                  className={`w-full p-8 pr-28 rounded-[2rem] border-2 outline-none focus:ring-8 focus:ring-indiapost-red/5 transition-all font-bold text-sm min-h-[150px] shadow-inner placeholder:text-stone-300 ${isInternal ? 'bg-amber-500/5 border-amber-500/10' : 'bg-white dark:bg-stone-800 border-indiapost-sand/20 dark:border-stone-700'}`}
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
                 />
                 <button 
                   onClick={handleReply}
-                  className="absolute right-4 bottom-4 p-4 bg-blue-600 text-white rounded-xl shadow-xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all"
+                  className="absolute right-6 bottom-6 p-5 bg-indiapost-red text-white rounded-2xl shadow-2xl shadow-indiapost-red/30 hover:scale-105 active:scale-95 transition-all"
                 >
-                  <Send size={24} />
+                  <Send size={28} />
                 </button>
               </div>
               
-              <div className="flex gap-2 mt-4">
-                <button onClick={() => handleStatusChange(ComplaintStatus.SOLVED)} className="flex-1 py-3 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-900/10">Mark Resolved</button>
-                <button className="p-3 border border-stone-200 dark:border-stone-700 text-stone-400 rounded-xl hover:bg-stone-50 transition-colors"><MoreVertical size={20} /></button>
+              <div className="flex gap-4 mt-8">
+                <button onClick={() => handleStatusChange(ComplaintStatus.SOLVED)} className="flex-1 py-5 bg-green-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-green-700 transition-all shadow-xl shadow-green-900/10 active:scale-[0.98]">Authorize Resolution</button>
+                <button className="p-5 border-2 border-indiapost-sand/20 dark:border-stone-700 text-indiapost-sand rounded-2xl hover:bg-indiapost-beige transition-all shadow-sm"><MoreVertical size={24} /></button>
               </div>
            </footer>
         </aside>
       )}
       
       {/* Detail Overlay Backdrop */}
-      {selectedId && <div onClick={() => setSelectedId(null)} className="fixed inset-0 bg-stone-900/20 backdrop-blur-sm z-40 animate-in fade-in duration-300" />}
+      {selectedId && <div onClick={() => setSelectedId(null)} className="fixed inset-0 bg-stone-900/10 backdrop-blur-[2px] z-40 animate-in fade-in duration-500" />}
 
     </div>
   );
