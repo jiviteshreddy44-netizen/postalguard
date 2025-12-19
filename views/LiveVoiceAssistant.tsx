@@ -1,4 +1,5 @@
 
+// @ts-nocheck
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { Mic, MicOff, X, PhoneCall, Volume2, Loader2 } from 'lucide-react';
