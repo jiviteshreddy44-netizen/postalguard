@@ -1,0 +1,8 @@
+{
+  "name": "Copy of PostGuard - Indian Postal Complaint System",
+  "description": "A smart complaint management system for the Indian Postal Department featuring automated classification, sentiment analysis, and ticket prioritization.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
