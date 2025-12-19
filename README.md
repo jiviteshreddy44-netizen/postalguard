@@ -1,20 +1,36 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# India Post - AI Grievance Redressal System
 
-This contains everything you need to run your app locally.
+## Deployment to Vercel
 
-View your app in AI Studio: https://ai.studio/apps/drive/1_4630LGvzugvjoKlwM_G-fYsHHdu5-b5
+To deploy this application to Vercel, follow these steps:
 
-## Run Locally
+1. **Push to a Git Provider**: Upload your code to GitHub, GitLab, or Bitbucket.
+2. **Connect to Vercel**:
+   - Log in to your [Vercel Dashboard](https://vercel.com).
+   - Click **Add New** > **Project**.
+   - Import your repository.
+3. **Build Settings**:
+   - Vercel should automatically detect **Vite** as the framework.
+   - **Framework Preset**: `Vite`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+4. **Environment Variables**:
+   - Important: This app requires a Google Gemini API key.
+   - In the **Environment Variables** section of the Vercel deployment settings, add:
+     - **Key**: `API_KEY`
+     - **Value**: `[Your-Gemini-API-Key]`
+5. **Deploy**: Click the **Deploy** button.
 
-**Prerequisites:**  Node.js
+## Local Configuration
+If you want to run this locally:
+1. `npm install`
+2. Create a `.env` file in the root.
+3. Add `VITE_API_KEY=your_key_here`.
+4. Update `vite.config.ts` to use `VITE_API_KEY` or ensure your environment has `API_KEY` set.
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Features
+- **AI Triage**: Automatically classifies complaints and assesses priority.
+- **Logistics Audit**: Generates a technical hypothesis for delivery delays.
+- **Live Voice**: Real-time native audio interface for citizens.
+- **Supervisor Dashboard**: High-density analytics for department staff.
