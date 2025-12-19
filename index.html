@@ -35,15 +35,9 @@
           font-family: 'Plus Jakarta Sans', sans-serif; 
           transition: background-color 0.2s ease, color 0.2s ease;
         }
-        /* Custom scrollbar to keep it professional */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d1b2; border-radius: 10px; }
-        
-        /* Smooth transitions for theme changes */
-        .bg-beige-transition {
-          transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
     </style>
 <script type="importmap">
 {
@@ -62,7 +56,6 @@
 </head>
 <body class="bg-indiapost-beige dark:bg-stone-950 text-stone-900 dark:text-stone-100 min-h-screen">
     <div id="root"></div>
-    <!-- Explicit entry point for Vite/Vercel build -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
